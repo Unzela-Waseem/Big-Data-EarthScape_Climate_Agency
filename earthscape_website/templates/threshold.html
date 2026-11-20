@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Threshold Settings — EarthScape{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:0.2rem;">
+        <i class="bi bi-sliders2 me-2"></i>Alert Threshold Settings
+    </h2>
+    <p style="color:var(--sage);margin:0;">Configure temperature anomaly thresholds for alert severity levels</p>
+</div>
+
+<div class="row g-4">
+    <!-- Current Threshold -->
+    <div class="col-lg-6">
+        <div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
+            <div class="card-body p-4">
+                <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:1.5rem;">
+                    <i class="bi bi-thermometer-high me-1"></i> Current Threshold
+                </h5>
+                <div class="text-center py-4" style="background:var(--cream);border-radius:16px;">
+                    <small style="color:var(--sage);font-weight:600;text-transform:uppercase;letter-spacing:1px;">
+                        Critical Alert Threshold
+                    </small>
+                    <div style="font-family:'Fraunces',serif;font-size:3.5rem;font-weight:700;color:#D64545;margin-top:0.3rem;">
+                        {{ threshold|default('1.5') }} °C
+                    </div>
+                    <p style="color:var(--sage);font-size:0.9rem;margin-top:0.5rem;">
+                        Temperature anomaly above baseline
+                    </p>
+                </div>
+
+                <div class="mt-4 p-3" style="background:rgba(242,160,7,0.06);border-radius:12px;border-left:4px solid #F2A007;">
+                    <div class="d-flex align-items-start">
+                        <i class="bi bi-info-circle-fill me-2 mt-1" style="color:#F2A007;"></i>
+                        <small style="color:var(--ink);line-height:1.6;">
+                            <strong>Scale Note:</strong> The threshold is based on the NOAA temperature anomaly scale 
+                            (baseline: 1901–2000 mean). Values above this threshold trigger CRITICAL-level alerts. 
+                            Values between 80% and 100% of the threshold trigger WARNING alerts.
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Alert Counts -->
+                <div class="mt-4">
+                    <h6 style="font-family:'Fraunces',serif;color:var(--deep-forest);">Current Alert Distribution</h6>
+                    <div class="row g-2 mt-2">
+                        <div class="col-4">
+                            <div class="p-2 text-center" style="background:rgba(214,69,69,0.06);border-radius:10px;">
+                                <div style="font-family:'Fraunces',serif;font-size:1.5rem;font-weight:700;color:#D64545;">
+                                    {{ alert_counts.CRITICAL|default(0) if alert_counts is defined else 0 }}
+                                </div>
+                                <small style="color:var(--sage);">Critical</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-2 text-center" style="background:rgba(242,160,7,0.08);border-radius:10px;">
+                                <div style="font-family:'Fraunces',serif;font-size:1.5rem;font-weight:700;color:#F2A007;">
+                                    {{ alert_counts.WARNING|default(0) if alert_counts is defined else 0 }}
+                                </div>
+                                <small style="color:var(--sage);">Warning</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-2 text-center" style="background:rgba(30,91,63,0.06);border-radius:10px;">
+                                <div style="font-family:'Fraunces',serif;font-size:1.5rem;font-weight:700;color:var(--forest);">
+                                    {{ alert_counts.OK|default(0) if alert_counts is defined else 0 }}
+                                </div>
+                                <small style="color:var(--sage);">OK</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Threshold Form -->
+    <div class="col-lg-6">
+        <div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);border-left:4px solid var(--forest);">
+            <div class="card-body p-4">
+                <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:1.5rem;">
+                    <i class="bi bi-pencil-square me-1"></i> Update Threshold
+                </h5>
+                <form method="POST" action="{{ url_for('threshold') }}">
+                    <div class="mb-4">
+                        <label for="new_threshold" class="form-label fw-bold" style="color:var(--ink);">
+                            New Threshold Value (°C)
+                        </label>
+                        <input type="number" step="0.01" min="0.1" max="5.0" class="form-control" id="new_threshold" 
+                               name="new_threshold" value="{{ threshold|default('1.5') }}" required
+                               style="border-radius:12px;padding:0.75rem 1rem;font-size:1.1rem;font-weight:600;">
+                        <div class="form-text" style="color:var(--sage);">
+                            Enter a value between 0.1 and 5.0 °C. This will recalculate all alert severity levels.
+                        </div>
+                    </div>
+
+                    <div class="p-3 mb-4" style="background:var(--cream);border-radius:12px;">
+                        <h6 style="color:var(--ink);font-size:0.9rem;margin-bottom:0.75rem;">Severity Scale Preview</h6>
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge me-2" style="background:#D64545;width:85px;">CRITICAL</span>
+                            <small style="color:var(--sage);">Anomaly ≥ threshold</small>
+                        </div>
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge me-2" style="background:#F2A007;width:85px;">WARNING</span>
+                            <small style="color:var(--sage);">Anomaly ≥ 80% of threshold</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="badge me-2" style="background:var(--forest);width:85px;">OK</span>
+                            <small style="color:var(--sage);">Anomaly &lt; 80% of threshold</small>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn w-100 rounded-pill" style="background:var(--forest);color:white;padding:0.75rem;font-weight:700;font-size:1rem;">
+                        <i class="bi bi-check2-circle me-1"></i> Update Threshold
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Paris Agreement Context -->
+        <div class="card border-0 mt-3" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
+            <div class="card-body">
+                <h6 style="font-family:'Fraunces',serif;color:var(--deep-forest);">
+                    <i class="bi bi-globe me-1"></i> Paris Agreement Reference
+                </h6>
+                <p style="color:var(--sage);font-size:0.88rem;margin-bottom:0;">
+                    The Paris Agreement aims to limit global warming to <strong>1.5 °C</strong> above pre-industrial levels, 
+                    with an outer limit of 2.0 °C. The default threshold aligns with this critical boundary.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

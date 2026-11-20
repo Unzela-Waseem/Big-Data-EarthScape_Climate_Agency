@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}User Management — EarthScape{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:0.2rem;">
+        <i class="bi bi-people-fill me-2"></i>User Management
+    </h2>
+    <p style="color:var(--sage);margin:0;">Create, manage, and configure platform user accounts</p>
+</div>
+
+<div class="row g-4">
+    <!-- Create User Form -->
+    <div class="col-lg-4">
+        <div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);border-left:4px solid var(--forest);">
+            <div class="card-body p-4">
+                <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:1.5rem;">
+                    <i class="bi bi-person-plus-fill me-1"></i> Create New User
+                </h5>
+                <form method="POST" action="{{ url_for('create_user') }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label fw-bold" style="color:var(--ink);font-size:0.9rem;">
+                            <i class="bi bi-person me-1"></i> Username
+                        </label>
+                        <input type="text" class="form-control" id="username" name="username" required placeholder="Enter username" style="border-radius:12px;padding:0.65rem 1rem;">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label fw-bold" style="color:var(--ink);font-size:0.9rem;">
+                            <i class="bi bi-lock me-1"></i> Password
+                        </label>
+                        <input type="password" class="form-control" id="password" name="password" required placeholder="Enter password" style="border-radius:12px;padding:0.65rem 1rem;">
+                    </div>
+                    <div class="mb-4">
+                        <label for="role" class="form-label fw-bold" style="color:var(--ink);font-size:0.9rem;">
+                            <i class="bi bi-shield me-1"></i> Role
+                        </label>
+                        <select class="form-select" id="role" name="role" style="border-radius:12px;padding:0.65rem 1rem;">
+                            <option value="viewer">Viewer</option>
+                            <option value="analyst">Analyst</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn w-100 rounded-pill" style="background:var(--forest);color:white;padding:0.65rem;font-weight:700;">
+                        <i class="bi bi-person-plus me-1"></i> Create User
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="col-lg-8">
+        <div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" style="font-size:0.92rem;">
+                        <thead>
+                            <tr style="background:var(--deep-forest);color:white;">
+                                <th class="ps-4 py-3" style="border-radius:16px 0 0 0;">ID</th>
+                                <th class="py-3">Username</th>
+                                <th class="py-3">Role</th>
+                                <th class="py-3">Status</th>
+                                <th class="py-3">Created</th>
+                                <th class="pe-4 py-3" style="border-radius:0 16px 0 0;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users|default([]) %}
+                            <tr>
+                                <td class="ps-4 py-2 fw-bold" style="color:var(--sage);">#{{ user.id }}</td>
+                                <td class="py-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle d-flex align-items-center justify-content-center me-2" 
+                                             style="width:32px;height:32px;background:{% if user.role == 'admin' %}rgba(214,69,69,0.1){% elif user.role == 'analyst' %}rgba(127,176,105,0.15){% else %}rgba(21,64,58,0.1){% endif %};">
+                                            <i class="bi bi-person-fill" style="font-size:0.9rem;color:{% if user.role == 'admin' %}#D64545{% elif user.role == 'analyst' %}var(--forest){% else %}var(--pine){% endif %};"></i>
+                                        </div>
+                                        <strong style="color:var(--ink);">{{ user.username }}</strong>
+                                    </div>
+                                </td>
+                                <td class="py-2">
+                                    <span class="badge rounded-pill" style="background:{% if user.role == 'admin' %}#D64545{% elif user.role == 'analyst' %}var(--forest){% else %}var(--sage){% endif %};">
+                                        {{ user.role|upper }}
+                                    </span>
+                                </td>
+                                <td class="py-2">
+                                    {% if user.is_active|default(true) %}
+                                    <span class="badge rounded-pill" style="background:var(--leaf);">
+                                        <i class="bi bi-check-circle me-1"></i>Active
+                                    </span>
+                                    {% else %}
+                                    <span class="badge rounded-pill" style="background:var(--sage);">
+                                        <i class="bi bi-x-circle me-1"></i>Inactive
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-2" style="color:var(--sage);">{{ user.created_at|default('—') }}</td>
+                                <td class="pe-4 py-2">
+                                    <div class="d-flex gap-1">
+                                        <!-- Role Change -->
+                                        <form method="POST" action="{{ url_for('change_role', user_id=user.id) }}" class="d-inline">
+                                            <select name="new_role" class="form-select form-select-sm d-inline" 
+                                                    style="width:90px;border-radius:8px;font-size:0.8rem;" 
+                                                    onchange="this.form.submit()">
+                                                <option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>Viewer</option>
+                                                <option value="analyst" {% if user.role == 'analyst' %}selected{% endif %}>Analyst</option>
+                                                <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                            </select>
+                                        </form>
+                                        <!-- Deactivate -->
+                                        {% if user.is_active|default(true) %}
+                                        <form method="POST" action="{{ url_for('deactivate_user', user_id=user.id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm rounded-pill" style="background:rgba(214,69,69,0.1);color:#D64545;font-size:0.78rem;" 
+                                                    onclick="return confirm('Deactivate this user?')">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </form>
+                                        {% else %}
+                                        <form method="POST" action="{{ url_for('activate_user', user_id=user.id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm rounded-pill" style="background:rgba(127,176,105,0.15);color:var(--forest);font-size:0.78rem;">
+                                                <i class="bi bi-check-circle"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not users %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5" style="color:var(--sage);">
+                                    <i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+                                    No users found.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

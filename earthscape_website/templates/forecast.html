@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Forecast — EarthScape{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:0.2rem;">
+        <i class="bi bi-calendar3 me-2"></i>12-Month Forecast
+    </h2>
+    <p style="color:var(--sage);margin:0;">Rolling 12-month temperature anomaly forecast with severity levels</p>
+</div>
+
+<div class="row g-4">
+    <!-- Forecast Chart -->
+    <div class="col-lg-7">
+        <div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
+            <div class="card-body">
+                <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:1rem;">
+                    <i class="bi bi-graph-up-arrow me-1"></i> Forecast Trajectory
+                </h5>
+                <canvas id="forecastDetailChart" height="320"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecast Summary -->
+    <div class="col-lg-5">
+        <div class="card border-0 mb-3" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
+            <div class="card-body">
+                <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);">
+                    <i class="bi bi-clipboard-data me-1"></i> Forecast Summary
+                </h5>
+                <div class="row g-2 mt-2">
+                    <div class="col-6">
+                        <div class="p-2 text-center" style="background:rgba(214,69,69,0.06);border-radius:10px;">
+                            <div style="font-family:'Fraunces',serif;font-size:1.4rem;font-weight:700;color:#D64545;">
+                                {{ forecasts|selectattr('level','equalto','CRITICAL')|list|length if forecasts is defined else 0 }}
+                            </div>
+                            <small style="color:var(--sage);">Critical</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 text-center" style="background:rgba(242,160,7,0.08);border-radius:10px;">
+                            <div style="font-family:'Fraunces',serif;font-size:1.4rem;font-weight:700;color:#F2A007;">
+                                {{ forecasts|selectattr('level','equalto','WARNING')|list|length if forecasts is defined else 0 }}
+                            </div>
+                            <small style="color:var(--sage);">Warning</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecast Table -->
+    <div class="col-12">
+        <div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" style="font-size:0.92rem;">
+                        <thead>
+                            <tr style="background:var(--deep-forest);color:white;">
+                                <th class="ps-4 py-3" style="border-radius:16px 0 0 0;">Month</th>
+                                <th class="py-3">Date</th>
+                                <th class="py-3">Forecast (°C)</th>
+                                <th class="py-3">Lower 95%</th>
+                                <th class="py-3">Upper 95%</th>
+                                <th class="pe-4 py-3" style="border-radius:0 16px 0 0;">Level</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in forecasts|default([]) %}
+                            <tr>
+                                <td class="ps-4 py-2 fw-bold" style="color:var(--ink);">+{{ loop.index }}</td>
+                                <td class="py-2">{{ f.date }}</td>
+                                <td class="py-2">
+                                    <span class="fw-bold" style="color:{% if f.level == 'CRITICAL' %}#D64545{% elif f.level == 'WARNING' %}#F2A007{% else %}var(--forest){% endif %};">
+                                        {{ f.forecast }}
+                                    </span>
+                                </td>
+                                <td class="py-2" style="color:var(--sage);">{{ f.lower }}</td>
+                                <td class="py-2" style="color:var(--sage);">{{ f.upper }}</td>
+                                <td class="pe-4 py-2">
+                                    {% if f.level == 'CRITICAL' %}
+                                    <span class="badge rounded-pill" style="background:#D64545;">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>CRITICAL
+                                    </span>
+                                    {% elif f.level == 'WARNING' %}
+                                    <span class="badge rounded-pill" style="background:#F2A007;">
+                                        <i class="bi bi-exclamation-circle-fill me-1"></i>WARNING
+                                    </span>
+                                    {% else %}
+                                    <span class="badge rounded-pill" style="background:var(--forest);">
+                                        <i class="bi bi-check-circle-fill me-1"></i>OK
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not forecasts %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5" style="color:var(--sage);">
+                                    <i class="bi bi-calendar-x" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+                                    No forecast data available. Run the forecast pipeline to generate predictions.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fData = {{ forecast_chart_data|default('{}')|safe }};
+    if (fData.labels && fData.labels.length > 0) {
+        const ctx = document.getElementById('forecastDetailChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: fData.labels,
+                datasets: [
+                    {
+                        label: 'Forecast',
+                        data: fData.forecast,
+                        borderColor: '#1E5B3F',
+                        backgroundColor: 'rgba(30,91,63,0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#1E5B3F',
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Upper 95%',
+                        data: fData.upper,
+                        borderColor: 'rgba(214,69,69,0.3)',
+                        backgroundColor: 'rgba(214,69,69,0.05)',
+                        fill: '+1',
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Lower 95%',
+                        data: fData.lower,
+                        borderColor: 'rgba(127,176,105,0.3)',
+                        backgroundColor: 'rgba(127,176,105,0.05)',
+                        fill: false,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    y: { title: { display: true, text: 'Anomaly (°C)' } },
+                    x: { title: { display: true, text: 'Month' } }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

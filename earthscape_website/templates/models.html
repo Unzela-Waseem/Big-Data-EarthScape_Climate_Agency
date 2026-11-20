@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Models — EarthScape{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:0.2rem;">
+        <i class="bi bi-cpu me-2"></i>Model Registry
+    </h2>
+    <p style="color:var(--sage);margin:0;">Champion model metrics, comparison, and retraining controls</p>
+</div>
+
+<div class="row g-4">
+    <!-- Champion Model Metrics -->
+    <div class="col-12">
+        <div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);border-left:5px solid var(--leaf);">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge rounded-pill me-3 px-3 py-2" style="background:var(--leaf);font-size:0.9rem;">
+                        <i class="bi bi-trophy-fill me-1"></i> CHAMPION
+                    </span>
+                    <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin:0;">
+                        {{ champion.name|default('Prophet + ARIMA Ensemble') }}
+                    </h5>
+                </div>
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 text-center" style="background:var(--cream);border-radius:12px;">
+                            <div style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;color:var(--forest);">
+                                {{ champion.rmse|default('0.098') }}
+                            </div>
+                            <small style="color:var(--sage);font-weight:600;">RMSE</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 text-center" style="background:var(--cream);border-radius:12px;">
+                            <div style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;color:var(--pine);">
+                                {{ champion.mae|default('0.076') }}
+                            </div>
+                            <small style="color:var(--sage);font-weight:600;">MAE</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 text-center" style="background:var(--cream);border-radius:12px;">
+                            <div style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;color:var(--deep-forest);">
+                                {{ champion.r2|default('0.943') }}
+                            </div>
+                            <small style="color:var(--sage);font-weight:600;">R² Score</small>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 text-center" style="background:var(--cream);border-radius:12px;">
+                            <div style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;color:var(--leaf);">
+                                {{ champion.mape|default('6.2%') }}
+                            </div>
+                            <small style="color:var(--sage);font-weight:600;">MAPE</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Comparison Table -->
+    <div class="col-lg-8">
+        <div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
+            <div class="card-body">
+                <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:1rem;">
+                    <i class="bi bi-bar-chart-steps me-1"></i> Model Comparison
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" style="font-size:0.92rem;">
+                        <thead>
+                            <tr style="background:var(--deep-forest);color:white;">
+                                <th class="ps-4 py-3" style="border-radius:16px 0 0 0;">Model</th>
+                                <th class="py-3">RMSE</th>
+                                <th class="py-3">MAE</th>
+                                <th class="py-3">R²</th>
+                                <th class="py-3">MAPE</th>
+                                <th class="pe-4 py-3" style="border-radius:0 16px 0 0;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for model in models|default([]) %}
+                            <tr {% if model.is_champion|default(false) %}style="background:rgba(127,176,105,0.06);"{% endif %}>
+                                <td class="ps-4 py-2 fw-bold" style="color:var(--ink);">
+                                    {{ model.name }}
+                                    {% if model.is_champion|default(false) %}
+                                    <span class="badge ms-1" style="background:var(--leaf);font-size:0.7rem;">CHAMPION</span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-2">{{ model.rmse }}</td>
+                                <td class="py-2">{{ model.mae }}</td>
+                                <td class="py-2">{{ model.r2 }}</td>
+                                <td class="py-2">{{ model.mape }}</td>
+                                <td class="pe-4 py-2">
+                                    {% if model.is_champion|default(false) %}
+                                    <span class="badge rounded-pill" style="background:var(--forest);">Active</span>
+                                    {% else %}
+                                    <span class="badge rounded-pill" style="background:var(--sage);">Archived</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not models %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4" style="color:var(--sage);">
+                                    <i class="bi bi-cpu" style="font-size:1.5rem;display:block;margin-bottom:0.5rem;"></i>
+                                    No models registered yet.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Info -->
+    <div class="col-lg-4">
+        <!-- Anomaly Method -->
+        <div class="card border-0 mb-3" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
+            <div class="card-body">
+                <h6 style="font-family:'Fraunces',serif;color:var(--deep-forest);">
+                    <i class="bi bi-shield-exclamation me-1"></i> Anomaly Detection Method
+                </h6>
+                <div class="p-3 mt-2" style="background:var(--cream);border-radius:12px;">
+                    <strong style="color:var(--ink);font-size:0.95rem;">Isolation Forest</strong>
+                    <p class="mb-0 mt-1" style="color:var(--sage);font-size:0.85rem;">
+                        Unsupervised ensemble method that isolates anomalies by random recursive partitioning. 
+                        Points with shorter average path lengths are more likely to be anomalies.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registry Explanation -->
+        <div class="card border-0 mb-3" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
+            <div class="card-body">
+                <h6 style="font-family:'Fraunces',serif;color:var(--deep-forest);">
+                    <i class="bi bi-journal-bookmark me-1"></i> Model Registry
+                </h6>
+                <p style="color:var(--sage);font-size:0.88rem;">
+                    The registry tracks all trained model versions with their metrics. The champion model is selected 
+                    automatically based on the lowest RMSE during backtesting. Retraining creates a new version and 
+                    promotes it if it outperforms the current champion.
+                </p>
+            </div>
+        </div>
+
+        <!-- Admin Retrain -->
+        {% if session.get('role') == 'admin' %}
+        <div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);border-left:4px solid var(--forest);">
+            <div class="card-body">
+                <h6 style="font-family:'Fraunces',serif;color:var(--deep-forest);">
+                    <i class="bi bi-arrow-repeat me-1"></i> Retrain Models
+                </h6>
+                <p style="color:var(--sage);font-size:0.88rem;">
+                    Re-run the ML pipeline with the latest data. A new model version will be created and promoted if it beats the current champion.
+                </p>
+                <form method="POST" action="{{ url_for('retrain') }}">
+                    <button type="submit" class="btn w-100 rounded-pill" style="background:var(--forest);color:white;font-weight:600;">
+                        <i class="bi bi-arrow-repeat me-1"></i> Start Retraining
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

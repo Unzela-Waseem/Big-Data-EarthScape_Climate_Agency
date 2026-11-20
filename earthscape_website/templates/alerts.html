@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Alerts — EarthScape{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:0.2rem;">
+            <i class="bi bi-bell-fill me-2"></i>Climate Alerts
+        </h2>
+        <p style="color:var(--sage);margin:0;">Threshold-based severity alerts for temperature anomalies</p>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="badge rounded-pill px-3 py-2" style="background:#D64545;font-size:0.85rem;">
+            CRITICAL: {{ alert_counts.CRITICAL|default(0) if alert_counts is defined else 0 }}
+        </span>
+        <span class="badge rounded-pill px-3 py-2" style="background:#F2A007;font-size:0.85rem;">
+            WARNING: {{ alert_counts.WARNING|default(0) if alert_counts is defined else 0 }}
+        </span>
+        <span class="badge rounded-pill px-3 py-2" style="background:var(--forest);font-size:0.85rem;">
+            OK: {{ alert_counts.OK|default(0) if alert_counts is defined else 0 }}
+        </span>
+    </div>
+</div>
+
+<div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" style="font-size:0.92rem;">
+                <thead>
+                    <tr style="background:var(--deep-forest);color:white;">
+                        <th class="ps-4 py-3" style="border-radius:16px 0 0 0;">ID</th>
+                        <th class="py-3">Date</th>
+                        <th class="py-3">Anomaly (°C)</th>
+                        <th class="py-3">Threshold</th>
+                        <th class="py-3">Level</th>
+                        <th class="py-3">Status</th>
+                        {% if session.get('role') == 'admin' %}
+                        <th class="pe-4 py-3" style="border-radius:0 16px 0 0;">Action</th>
+                        {% else %}
+                        <th class="pe-4 py-3" style="border-radius:0 16px 0 0;"></th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alert in alerts|default([]) %}
+                    <tr>
+                        <td class="ps-4 py-2 fw-bold" style="color:var(--sage);">#{{ alert.id }}</td>
+                        <td class="py-2">{{ alert.date }}</td>
+                        <td class="py-2">
+                            <span class="fw-bold" style="color:{% if alert.level == 'CRITICAL' %}#D64545{% elif alert.level == 'WARNING' %}#F2A007{% else %}var(--forest){% endif %};">
+                                {{ alert.anomaly }}
+                            </span>
+                        </td>
+                        <td class="py-2" style="color:var(--sage);">{{ alert.threshold }}</td>
+                        <td class="py-2">
+                            {% if alert.level == 'CRITICAL' %}
+                            <span class="badge rounded-pill" style="background:#D64545;">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>CRITICAL
+                            </span>
+                            {% elif alert.level == 'WARNING' %}
+                            <span class="badge rounded-pill" style="background:#F2A007;">
+                                <i class="bi bi-exclamation-circle-fill me-1"></i>WARNING
+                            </span>
+                            {% else %}
+                            <span class="badge rounded-pill" style="background:var(--forest);">
+                                <i class="bi bi-check-circle-fill me-1"></i>OK
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2">
+                            {% if alert.acknowledged|default(false) %}
+                            <span class="badge rounded-pill" style="background:var(--sage);">
+                                <i class="bi bi-check2 me-1"></i>Acknowledged
+                            </span>
+                            {% else %}
+                            <span class="badge rounded-pill" style="background:rgba(214,69,69,0.15);color:#D64545;">
+                                <i class="bi bi-clock me-1"></i>Pending
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="pe-4 py-2">
+                            {% if session.get('role') == 'admin' and not alert.acknowledged|default(false) %}
+                            <form method="POST" action="{{ url_for('acknowledge_alert', alert_id=alert.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm rounded-pill" style="background:var(--forest);color:white;font-size:0.8rem;">
+                                    <i class="bi bi-check2-circle me-1"></i>Acknowledge
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not alerts %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5" style="color:var(--sage);">
+                            <i class="bi bi-bell-slash" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+                            No alerts generated yet. Alerts appear when forecast values cross the configured threshold.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
