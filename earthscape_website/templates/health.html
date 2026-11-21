@@ -7,7 +7,7 @@
             <h2 class="fw-bold" style="font-family:'Fraunces', serif; color:var(--deep-forest);">System Health & Diagnostics</h2>
             <p class="text-muted mb-0">NFR-2 Performance & Operational Integrity Monitoring</p>
         </div>
-        <span class="badge bg-success fs-6 px-3 py-2 rounded-pill"><i class="bi bi-check-circle me-1"></i> System Online</span>
+        <span class="badge {{ 'bg-success' if info.db_status == 'connected' else 'bg-warning text-dark' }} fs-6 px-3 py-2 rounded-pill"><i class="bi bi-check-circle me-1"></i> {{ 'System Online' if info.db_status == 'connected' else 'App Online · Database Offline' }}</span>
     </div>
 
     <div class="row g-4 mb-4">
@@ -68,10 +68,15 @@
                         <td class="fw-bold"><code>{{ coll }}</code></td>
                         <td>
                             {% if coll == 'monthly_climate' %}Primary Historical Climate Anomaly & CO2/ONI Series
+                            {% elif coll == 'annual_ghg' %}Annual Country-Level Greenhouse Gas Records
+                            {% elif coll == 'arctic_ice' %}NSIDC Monthly Arctic Sea-Ice Extent
                             {% elif coll == 'forecast' %}Verified Multi-Horizon Direct Ensemble Predictions
                             {% elif coll == 'alerts' %}Dynamic Threshold-evaluated Operational Alerts
                             {% elif coll == 'users' %}RBAC User Security Credential Store
                             {% elif coll == 'feedback' %}User Support & Feedback Communications
+                            {% elif coll == 'settings' %}Alert Threshold and Application Settings
+                            {% elif coll == 'audit' %}Administrative Audit and Request Timing Events
+                            {% elif coll == 'analysis_results' %}Optional Notebook-Derived Analysis Summaries
                             {% else %}Application Datastore{% endif %}
                         </td>
                         <td><span class="badge bg-secondary fs-6">{{ count }} docs</span></td>

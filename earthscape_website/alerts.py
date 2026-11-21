@@ -60,20 +60,26 @@ def regenerate_alerts(db, threshold=None):
     counts = {"CRITICAL": 0, "WARNING": 0, "OK": 0}
 
     for fc in forecasts:
-        forecast_val = float(fc.get("forecast", fc.get("predicted", 0)))
+        forecast_val = float(fc.get("forecast", 0))
         level = classify(forecast_val, threshold)
         counts[level] += 1
-
+        month = fc.get("month") or fc.get("date")
+        if hasattr(month, "strftime"):
+            month = month.strftime("%Y-%m-01")
+        elif month:
+            month = str(month)[:7] + "-01"
+        message = {
+            "CRITICAL": f"Forecast {forecast_val:.3f} °C meets or exceeds the {threshold:.2f} °C threshold.",
+            "WARNING": f"Forecast {forecast_val:.3f} °C is within 10% of the {threshold:.2f} °C threshold.",
+            "OK": f"Forecast {forecast_val:.3f} °C is below the warning range.",
+        }[level]
         alerts.append({
-            "year": fc.get("year"),
-            "month": fc.get("month"),
-            "horizon": fc.get("horizon"),
-            "forecast": forecast_val,
-            "threshold": threshold,
+            "month": month,
+            "forecast_value": forecast_val,
+            "threshold_used": threshold,
             "level": level,
+            "message": message,
             "acknowledged": False,
-            "ack_by": None,
-            "ack_at": None,
             "created_at": now,
         })
 

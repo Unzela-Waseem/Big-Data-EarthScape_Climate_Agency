@@ -5,7 +5,7 @@ Provides a lazy, singleton connection to the *earthscape* database.
 
 import sys
 from pymongo import MongoClient, ASCENDING
-from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
+from pymongo.errors import PyMongoError
 from config import Config
 
 # ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@ def get_db():
 
     uri = Config.MONGO_URI
     if not uri:
-        print("[db] MONGO_URI is empty — set it in .env", file=sys.stderr)
+        print("[db] MONGO_URI is not configured.", file=sys.stderr)
         return None
 
     try:
@@ -46,37 +46,31 @@ def get_db():
         _ensure_indexes(_db)
         print("[db] Connected to MongoDB Atlas — earthscape database ready.")
         return _db
-    except Exception as exc:
-        print(f"[db] Atlas connection/auth failed ({exc}). Trying local MongoDB fallback...", file=sys.stderr)
-        try:
-            _client = MongoClient("mongodb://localhost:27017", serverSelectionTimeoutMS=3000)
-            _client.admin.command("ping")
-            _db = _client["earthscape"]
-            _ensure_indexes(_db)
-            print("[db] Connected to Local MongoDB fallback — earthscape database ready.")
-            return _db
-        except Exception as local_exc:
-            print(f"[db] All MongoDB connections failed: {local_exc}", file=sys.stderr)
-            return None
+    except PyMongoError as exc:
+        # Do not include connection details: driver errors may contain host or auth data.
+        print(f"[db] MongoDB is unavailable ({type(exc).__name__}).", file=sys.stderr)
+        if _client is not None:
+            _client.close()
+            _client = None
+        return None
 
 
 def _ensure_indexes(db):
     """Create indexes that speed up the most common queries."""
     try:
-        # monthly_climate — sort / filter by year+month
+        # Date and natural-key indexes keep time-series reads and idempotent loads fast.
+        db.monthly_climate.create_index([("date", ASCENDING)], background=True)
         db.monthly_climate.create_index(
-            [("year", ASCENDING), ("month", ASCENDING)], background=True
+            [("year", ASCENDING), ("month", ASCENDING)], unique=True, background=True
         )
-        # forecast — sort by horizon / date
-        db.forecast.create_index([("horizon", ASCENDING)], background=True)
-        db.forecast.create_index(
-            [("year", ASCENDING), ("month", ASCENDING)], background=True
-        )
-        # alerts — sort by date, filter by level
-        db.alerts.create_index(
-            [("year", ASCENDING), ("month", ASCENDING)], background=True
-        )
+        db.annual_ghg.create_index([("year", ASCENDING), ("country", ASCENDING)], unique=True, background=True)
+        db.arctic_ice.create_index([("month", ASCENDING)], unique=True, background=True)
+        db.forecast.create_index([("month", ASCENDING)], unique=True, background=True)
+        db.alerts.create_index([("month", ASCENDING)], unique=True, background=True)
         db.alerts.create_index([("level", ASCENDING)], background=True)
+        db.users.create_index([("username", ASCENDING)], unique=True, background=True)
+        db.feedback.create_index([("user_id", ASCENDING), ("created_at", ASCENDING)], background=True)
+        db.audit.create_index([("timestamp", ASCENDING)], background=True)
     except Exception as exc:  # noqa: BLE001
         print(f"[db] Index creation warning: {exc}", file=sys.stderr)
 

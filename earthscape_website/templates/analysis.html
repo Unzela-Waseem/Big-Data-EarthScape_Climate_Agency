@@ -1,245 +1,29 @@
-{% extends "base.html" %}
-{% block title %}Analysis — EarthScape{% endblock %}
-
+{% extends 'base.html' %}
+{% block title %}Processing and analysis — EarthScape{% endblock %}
+{% block crumb %}Analysis{% endblock %}
 {% block content %}
-<div class="mb-4">
-    <h2 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:0.2rem;">
-        <i class="bi bi-bar-chart-line-fill me-2"></i>Climate Analysis
-    </h2>
-    <p style="color:var(--sage);margin:0;">Deep-dive analytics from Spark processing, ML models, and statistical correlations</p>
+<div class="page-heading"><div><h1>Processing &amp; analysis</h1><p>Climate-processing outputs and indicators from the supplied notebook.</p></div></div>
+<div class="row g-3 mb-3">
+  <div class="col-md-6 col-xl-3"><div class="kpi-card"><div class="kpi-note">Monthly climate history</div><div class="kpi-value">{{ spark_summary.total_records }}</div><div class="kpi-note">{{ spark_summary.date_range }} · NASA GISTEMP</div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="kpi-card"><div class="kpi-note">Temperature / CO₂ correlation</div><div class="kpi-value">{{ correlation if correlation is not none else '—' }}</div><div class="kpi-note">Pearson r for loaded monthly rows</div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="kpi-card"><div class="kpi-note">Detected anomalies</div><div class="kpi-value">{{ anomaly_count }}</div><div class="kpi-note">Robust-z outliers in 12-month-baseline residuals</div></div></div>
+  <div class="col-md-6 col-xl-3"><div class="kpi-card"><div class="kpi-note">Notebook processing</div><div class="kpi-value" style="font-size:1.15rem">{{ spark_summary.missing_filled }}</div><div class="kpi-note">Documented cleaning and interpolation</div></div></div>
 </div>
-
-<div class="row g-4">
-    <!-- Spark Processing Summary -->
-    <div class="col-lg-6">
-        <div class="card border-0 h-100" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width:48px;height:48px;background:rgba(127,176,105,0.15);">
-                        <i class="bi bi-database-fill-gear" style="font-size:1.3rem;color:var(--forest);"></i>
-                    </div>
-                    <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin:0;">Spark Processing Summary</h5>
-                </div>
-                <div class="p-3 mb-2" style="background:var(--cream);border-radius:12px;">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span style="color:var(--sage);">Total Records Processed</span>
-                        <strong style="color:var(--ink);">{{ spark_summary.total_records|default('1,762') }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span style="color:var(--sage);">Date Range</span>
-                        <strong style="color:var(--ink);">{{ spark_summary.date_range|default('1880-01 → 2026-10') }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span style="color:var(--sage);">Columns After Join</span>
-                        <strong style="color:var(--ink);">{{ spark_summary.columns|default(12) }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span style="color:var(--sage);">Missing Values Filled</span>
-                        <strong style="color:var(--ink);">{{ spark_summary.missing_filled|default('Forward-fill + interpolation') }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span style="color:var(--sage);">Data Sources</span>
-                        <strong style="color:var(--ink);">{{ spark_summary.sources|default('4 (NOAA, ESRL, HadCRUT, ONI)') }}</strong>
-                    </div>
-                </div>
-                <div class="text-center mt-3">
-                    <span class="badge rounded-pill px-3 py-2" style="background:var(--leaf);font-size:0.85rem;">
-                        <i class="bi bi-check-circle me-1"></i> ETL Pipeline Complete
-                    </span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Correlation Analysis -->
-    <div class="col-lg-6">
-        <div class="card border-0 h-100" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width:48px;height:48px;background:rgba(21,64,58,0.1);">
-                        <i class="bi bi-arrow-left-right" style="font-size:1.3rem;color:var(--pine);"></i>
-                    </div>
-                    <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin:0;">Correlation Analysis</h5>
-                </div>
-                <div class="text-center py-4">
-                    <div style="font-family:'Fraunces',serif;font-size:3.5rem;font-weight:700;color:var(--forest);">
-                        {{ correlation|default('0.876') }}
-                    </div>
-                    <p style="color:var(--sage);font-size:1.05rem;margin-top:0.5rem;">
-                        Pearson correlation between<br><strong>Temperature Anomaly</strong> and <strong>CO₂ Concentration</strong>
-                    </p>
-                </div>
-                <div class="p-3" style="background:var(--cream);border-radius:12px;">
-                    <div class="d-flex align-items-start">
-                        <i class="bi bi-info-circle-fill me-2 mt-1" style="color:var(--forest);"></i>
-                        <small style="color:var(--sage);line-height:1.6;">
-                            A strong positive correlation confirms that rising CO₂ levels are closely associated with increasing global temperature anomalies, consistent with greenhouse gas forcing theory.
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Anomaly Detection -->
-    <div class="col-lg-6">
-        <div class="card border-0 h-100" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width:48px;height:48px;background:rgba(214,69,69,0.1);">
-                        <i class="bi bi-shield-exclamation" style="font-size:1.3rem;color:#D64545;"></i>
-                    </div>
-                    <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin:0;">Anomaly Detection</h5>
-                </div>
-                <p style="color:var(--sage);font-size:0.92rem;">
-                    Isolation Forest model identifies statistically unusual temperature observations using residual-based analysis.
-                </p>
-                <div class="row g-3 mt-2">
-                    <div class="col-4 text-center">
-                        <div class="p-3" style="background:var(--cream);border-radius:12px;">
-                            <div style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;color:var(--forest);">0.89</div>
-                            <small style="color:var(--sage);font-weight:600;">Precision</small>
-                        </div>
-                    </div>
-                    <div class="col-4 text-center">
-                        <div class="p-3" style="background:var(--cream);border-radius:12px;">
-                            <div style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;color:var(--pine);">0.82</div>
-                            <small style="color:var(--sage);font-weight:600;">Recall</small>
-                        </div>
-                    </div>
-                    <div class="col-4 text-center">
-                        <div class="p-3" style="background:var(--cream);border-radius:12px;">
-                            <div style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;color:#D64545;">0.84</div>
-                            <small style="color:var(--sage);font-weight:600;">F1-Score</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="mt-3 p-3" style="background:rgba(214,69,69,0.05);border-radius:12px;border-left:4px solid #D64545;">
-                    <small style="color:var(--ink);">
-                        <strong>Method:</strong> Residual-based detection — computed as the difference between observed and trend-fitted values. Points exceeding 2σ are flagged as anomalies.
-                    </small>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ENSO / ONI -->
-    <div class="col-lg-6">
-        <div class="card border-0 h-100" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width:48px;height:48px;background:rgba(242,160,7,0.12);">
-                        <i class="bi bi-tsunami" style="font-size:1.3rem;color:#F2A007;"></i>
-                    </div>
-                    <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin:0;">ENSO / ONI Teleconnections</h5>
-                </div>
-                <p style="color:var(--sage);font-size:0.92rem;">
-                    The Oceanic Niño Index (ONI) tracks El Niño and La Niña episodes based on SST anomalies in the Niño 3.4 region.
-                </p>
-                <div class="row g-3 mt-2">
-                    <div class="col-4">
-                        <div class="p-3 text-center" style="background:rgba(214,69,69,0.06);border-radius:12px;">
-                            <div style="font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;color:#D64545;">El Niño</div>
-                            <small style="color:var(--sage);">ONI &gt; +0.5</small>
-                        </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="p-3 text-center" style="background:rgba(30,91,63,0.06);border-radius:12px;">
-                            <div style="font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;color:var(--forest);">Neutral</div>
-                            <small style="color:var(--sage);">−0.5 to +0.5</small>
-                        </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="p-3 text-center" style="background:rgba(21,64,58,0.06);border-radius:12px;">
-                            <div style="font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;color:var(--pine);">La Niña</div>
-                            <small style="color:var(--sage);">ONI &lt; −0.5</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="mt-3 p-3" style="background:var(--cream);border-radius:12px;">
-                    <small style="color:var(--ink);">
-                        ENSO events modulate global temperature by ±0.1–0.2 °C. Strong El Niño years consistently align with above-trend warming.
-                    </small>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Arctic Amplification -->
-    <div class="col-lg-6">
-        <div class="card border-0 h-100" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width:48px;height:48px;background:rgba(21,64,58,0.1);">
-                        <i class="bi bi-snow3" style="font-size:1.3rem;color:var(--pine);"></i>
-                    </div>
-                    <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin:0;">Arctic Amplification</h5>
-                </div>
-                <div class="row g-3 mb-3">
-                    <div class="col-6">
-                        <div class="p-3 text-center" style="background:rgba(214,69,69,0.06);border-radius:12px;">
-                            <div style="font-family:'Fraunces',serif;font-size:2rem;font-weight:700;color:#D64545;">0.656</div>
-                            <small style="color:var(--sage);font-weight:600;">°C/decade (Arctic)</small>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="p-3 text-center" style="background:rgba(30,91,63,0.06);border-radius:12px;">
-                            <div style="font-family:'Fraunces',serif;font-size:2rem;font-weight:700;color:var(--forest);">0.158</div>
-                            <small style="color:var(--sage);font-weight:600;">°C/decade (Global)</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="p-3" style="background:rgba(214,69,69,0.05);border-radius:12px;border-left:4px solid #D64545;">
-                    <small style="color:var(--ink);">
-                        <strong>Amplification Factor: ~4.2×</strong> — The Arctic is warming more than four times faster than the global average due to ice-albedo feedback, reduced sea-ice extent, and polar energy transport.
-                    </small>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Data Sources -->
-    <div class="col-lg-6">
-        <div class="card border-0 h-100" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width:48px;height:48px;background:rgba(127,176,105,0.15);">
-                        <i class="bi bi-journal-text" style="font-size:1.3rem;color:var(--forest);"></i>
-                    </div>
-                    <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin:0;">Data Sources</h5>
-                </div>
-                <div class="list-group list-group-flush">
-                    <div class="list-group-item border-0 px-0 d-flex align-items-center">
-                        <span class="badge me-3" style="background:var(--forest);width:40px;">1</span>
-                        <div>
-                            <strong style="color:var(--ink);">NOAA Global Temperature</strong>
-                            <br><small style="color:var(--sage);">Monthly anomalies from 1880 — baseline 1901-2000 mean</small>
-                        </div>
-                    </div>
-                    <div class="list-group-item border-0 px-0 d-flex align-items-center">
-                        <span class="badge me-3" style="background:var(--pine);width:40px;">2</span>
-                        <div>
-                            <strong style="color:var(--ink);">ESRL CO₂ (Mauna Loa)</strong>
-                            <br><small style="color:var(--sage);">Atmospheric CO₂ from Scripps/NOAA, 1958–present</small>
-                        </div>
-                    </div>
-                    <div class="list-group-item border-0 px-0 d-flex align-items-center">
-                        <span class="badge me-3" style="background:var(--sage);width:40px;">3</span>
-                        <div>
-                            <strong style="color:var(--ink);">HadCRUT5 Gridded</strong>
-                            <br><small style="color:var(--sage);">UK Met Office / CRU gridded temperature dataset</small>
-                        </div>
-                    </div>
-                    <div class="list-group-item border-0 px-0 d-flex align-items-center">
-                        <span class="badge me-3" style="background:var(--leaf);width:40px;">4</span>
-                        <div>
-                            <strong style="color:var(--ink);">ENSO ONI Index</strong>
-                            <br><small style="color:var(--sage);">CPC Oceanic Niño Index, 3-month running SST anomaly</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="row g-3">
+  <div class="col-xl-6"><article class="card h-100"><div class="card-body"><h2 class="h5">Notebook processing summary</h2>
+    <div class="alert-row"><span>Monthly global temperature</span><strong>{{ spark_summary.date_range }}</strong></div>
+    <div class="alert-row"><span>Parallel processing</span><strong>PySpark MapReduce + Spark SQL</strong></div>
+    <div class="alert-row"><span>Data quality</span><strong>Short-gap interpolation; anomalies flagged, not removed</strong></div>
+    <div class="alert-row"><span>Sources</span><strong class="text-end">NASA · NOAA MLO · CPC ONI · OWID · NSIDC</strong></div>
+    <p class="text-muted small mt-3 mb-0">Spark, model fitting, and gridded NetCDF analysis run in the notebook. The web app serves the stored outputs and uses the saved champion model for on-demand predictions.</p>
+  </div></article></div>
+  <div class="col-xl-6"><article class="card h-100"><div class="card-body"><h2 class="h5">Residual anomaly evaluation</h2><p class="text-muted">The primary detector applies robust-z scoring to residuals from the trailing 12-month temperature level, using the prior 120 months as its reference. The displayed precision, recall, and F1 are the SRS evaluation results; the table lists the loaded residual flags.</p>
+    <div class="row g-2"><div class="col-4"><div class="kpi-card"><div class="kpi-note">Precision</div><div class="kpi-value">0.89</div></div></div><div class="col-4"><div class="kpi-card"><div class="kpi-note">Recall</div><div class="kpi-value">0.82</div></div></div><div class="col-4"><div class="kpi-card"><div class="kpi-note">F1</div><div class="kpi-value">0.84</div></div></div></div>
+    <h3 class="h6 mt-4">Flagged months</h3><div class="table-responsive"><table class="table"><thead><tr><th>Month</th><th>Temperature anomaly</th><th>Method</th></tr></thead><tbody>{% for item in anomalies %}<tr><td>{{ item.date or '%04d-%02d'|format(item.year,item.month) }}</td><td>{{ item.temp_anomaly }} °C</td><td>{{ item.anomaly_method or 'robust deviation' }}</td></tr>{% else %}<tr><td colspan="3" class="text-muted">No anomaly flags are loaded yet.</td></tr>{% endfor %}</tbody></table></div>
+  </div></article></div>
+  <div class="col-xl-6"><article class="card h-100"><div class="card-body"><h2 class="h5">ENSO / ONI insight</h2>{% if enso_summary %}<div class="kpi-value">{{ enso_summary.latest_oni }}</div><div class="kpi-note">Latest loaded ONI value</div><div class="row g-2 mt-3"><div class="col-6"><div class="kpi-card"><div class="kpi-note">El Niño months (recent 5y)</div><div class="kpi-value">{{ enso_summary.el_nino_months }}</div></div></div><div class="col-6"><div class="kpi-card"><div class="kpi-note">La Niña months (recent 5y)</div><div class="kpi-value">{{ enso_summary.la_nina_months }}</div></div></div></div>{% else %}<p class="text-muted">ONI values are not loaded yet.</p>{% endif %}<p class="mt-3 mb-0">The champion feature set C_B+ENSO uses ONI lags of 3, 4 and 6 months plus ONI change. These lagged inputs avoid using future information.</p></div></article></div>
+  <div class="col-xl-6"><article class="card h-100"><div class="card-body"><h2 class="h5">Regional warming and Arctic ice</h2><div class="row g-3"><div class="col-6"><div class="kpi-card"><div class="kpi-note">Arctic warming</div><div class="kpi-value">{{ arctic_summary.arctic_rate }}</div><div class="kpi-note">°C / decade</div></div></div><div class="col-6"><div class="kpi-card"><div class="kpi-note">Tropics warming</div><div class="kpi-value">{{ arctic_summary.tropics_rate }}</div><div class="kpi-note">°C / decade</div></div></div><div class="col-12"><div class="chart-wrap"><canvas id="arcticIceChart" aria-label="Monthly Arctic sea ice extent"></canvas></div></div><div class="col-12"><div class="p-3 rounded-3" style="background:var(--sky)"><strong>Arctic sea-ice impact model</strong><span class="float-end">Horizon-1 skill +{{ arctic_summary.sea_ice_skill }}</span></div></div></div><p class="text-muted small mt-3 mb-0">Regional rates and impact-model skill are notebook results. The chart displays NSIDC monthly extent in million km².</p></div></article></div>
+  <div class="col-12"><article class="card"><div class="card-body"><h2 class="h5">World greenhouse-gas trend</h2>{% if ghg_summary.last_total %}<p class="mb-0">World total GHG records span {{ ghg_summary.first_year }}–{{ ghg_summary.last_year }}. First loaded value: {{ ghg_summary.first_total }}; latest: {{ ghg_summary.last_total }}. Values retain OWID source units.</p>{% else %}<p class="text-muted mb-0">OWID annual GHG records are not loaded yet.</p>{% endif %}</div></article></div>
 </div>
 {% endblock %}
+{% block scripts %}<script>window.EARTHSCAPE_ARCTIC={{ arctic_records|tojson }};</script>{% endblock %}

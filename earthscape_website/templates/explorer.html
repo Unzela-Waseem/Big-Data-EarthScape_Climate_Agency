@@ -42,7 +42,7 @@
                                 {{ row.temp_anomaly }}
                             </span>
                         </td>
-                        <td class="py-2">{{ row.co2|default('—') }}</td>
+                        <td class="py-2">{{ row.co2_ppm if row.co2_ppm is not none else '—' }}</td>
                         <td class="py-2">{{ row.oni|default('—') }}</td>
                         <td class="pe-4 py-2">
                             {% if row.is_anomaly|default(false) %}

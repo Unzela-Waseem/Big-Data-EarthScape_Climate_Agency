@@ -33,9 +33,7 @@
                     <div class="d-flex align-items-start">
                         <i class="bi bi-info-circle-fill me-2 mt-1" style="color:#F2A007;"></i>
                         <small style="color:var(--ink);line-height:1.6;">
-                            <strong>Scale Note:</strong> The threshold is based on the NOAA temperature anomaly scale 
-                            (baseline: 1901–2000 mean). Values above this threshold trigger CRITICAL-level alerts. 
-                            Values between 80% and 100% of the threshold trigger WARNING alerts.
+                            <strong>Scale Note:</strong> Values use the NASA GISTEMP 1951–1980 baseline. The Paris 1.5 °C limit above pre-industrial is about 1.27 °C on this scale; the default 1.50 °C operational threshold is about 1.73 °C above pre-industrial.
                         </small>
                     </div>
                 </div>
@@ -81,13 +79,13 @@
                 <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:1.5rem;">
                     <i class="bi bi-pencil-square me-1"></i> Update Threshold
                 </h5>
-                <form method="POST" action="{{ url_for('threshold') }}">
+                <form method="POST" action="{{ url_for('threshold') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-4">
                         <label for="new_threshold" class="form-label fw-bold" style="color:var(--ink);">
                             New Threshold Value (°C)
                         </label>
                         <input type="number" step="0.01" min="0.1" max="5.0" class="form-control" id="new_threshold" 
-                               name="new_threshold" value="{{ threshold|default('1.5') }}" required
+                               name="threshold" value="{{ threshold|default('1.5') }}" required
                                style="border-radius:12px;padding:0.75rem 1rem;font-size:1.1rem;font-weight:600;">
                         <div class="form-text" style="color:var(--sage);">
                             Enter a value between 0.1 and 5.0 °C. This will recalculate all alert severity levels.
@@ -102,11 +100,11 @@
                         </div>
                         <div class="d-flex align-items-center mb-2">
                             <span class="badge me-2" style="background:#F2A007;width:85px;">WARNING</span>
-                            <small style="color:var(--sage);">Anomaly ≥ 80% of threshold</small>
+                            <small style="color:var(--sage);">Forecast ≥ 90% of threshold and below threshold</small>
                         </div>
                         <div class="d-flex align-items-center">
                             <span class="badge me-2" style="background:var(--forest);width:85px;">OK</span>
-                            <small style="color:var(--sage);">Anomaly &lt; 80% of threshold</small>
+                            <small style="color:var(--sage);">Forecast &lt; 90% of threshold</small>
                         </div>
                     </div>
 
@@ -124,8 +122,7 @@
                     <i class="bi bi-globe me-1"></i> Paris Agreement Reference
                 </h6>
                 <p style="color:var(--sage);font-size:0.88rem;margin-bottom:0;">
-                    The Paris Agreement aims to limit global warming to <strong>1.5 °C</strong> above pre-industrial levels, 
-                    with an outer limit of 2.0 °C. The default threshold aligns with this critical boundary.
+                    Values use the NASA GISTEMP 1951–1980 baseline. The Paris 1.5 °C above pre-industrial limit is about <strong>1.27 °C</strong> on this scale; the default 1.50 °C threshold is about <strong>1.73 °C</strong> above pre-industrial. This is an operational alert setting.
                 </p>
             </div>
         </div>

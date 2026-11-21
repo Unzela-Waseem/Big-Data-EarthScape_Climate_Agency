@@ -1,334 +1,312 @@
-# 🌍 EarthScape Climate Agency — Web Application
+# EarthScape Climate Agency
 
-> **Real-time climate monitoring, forecasting, and alerting platform built with Flask + MongoDB.**
+EarthScape is a Flask and MongoDB web portal for the climate analysis completed in the companion notebook. It presents cleaned monthly temperature, CO₂ and ONI records; annual greenhouse-gas data; the saved `v3_direct` forecast model; alerts; and support workflows. It does not process raw satellite imagery or run the Spark notebook jobs from the website.
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
-![Flask](https://img.shields.io/badge/Flask-3.x-green?logo=flask)
-![MongoDB](https://img.shields.io/badge/MongoDB-7.x-brightgreen?logo=mongodb)
-![Chart.js](https://img.shields.io/badge/Chart.js-4.x-orange)
-![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-purple?logo=bootstrap)
+## Features and roles
 
----
+| Capability | Admin | Analyst |
+|---|---:|---:|
+| Dashboard, historical explorer, analysis, live replay | View | View |
+| Generate prediction, view forecast/model performance/alerts | Yes | Yes |
+| Submit feedback and see own replies | Yes | Yes |
+| Change threshold, manage users, manage all feedback, acknowledge alerts, request retrain | Yes | No |
+| System health | Yes | No |
 
-## 📋 Overview
+All role restrictions are enforced by Flask route decorators as well as the menu. Passwords use Werkzeug hashes. POST forms use CSRF tokens.
 
-EarthScape Climate Agency is a comprehensive web application that provides climate analysts and administrators with tools to:
+## Technology and folder layout
 
-- **Monitor** global temperature anomalies, CO₂ concentrations, and ENSO (ONI) indices
-- **Visualize** historical trends (1880–2026) with interactive Chart.js dashboards
-- **Forecast** future temperature anomalies using ARIMA/ETS models (12-month horizon)
-- **Detect** anomalies and trigger threshold-based alerts in real time
-- **Manage** users, settings, and data through a role-based admin panel
-- **Process** large climate datasets using PySpark (Hadoop-equivalent batch processing)
+- Python 3.10+, Flask/Jinja2, PyMongo, MongoDB Atlas
+- Bootstrap 5, Chart.js 4, HTML/CSS/JavaScript
+- Saved scikit-learn deployment files, loaded once at app import: `model/direct_models.pkl` and `model/metadata.json`
+- MongoDB database: `earthscape`
+- The website reads the cleaned notebook CSV exports. It never recreates/retrains the model.
 
----
-
-## ✨ Features
-
-| Feature | Description |
-|---------|-------------|
-| 🏠 **Landing Page** | Public-facing page with KPI stats band, mission overview, and CTA |
-| 📊 **Dashboard** | Interactive charts for temperature history, CO₂, dual-axis correlations |
-| 🔮 **Forecast** | 12-month forecast with confidence bands and threshold lines |
-| 🔴 **Live Monitor** | Real-time sensor feed simulation with spike detection & quarantine |
-| ⚠️ **Alerts** | Auto-generated alerts for threshold breaches, anomalies, ENSO extremes |
-| 👤 **User Roles** | Admin (full CRUD) and Analyst (read + limited write) |
-| ⚙️ **Settings** | Configurable thresholds, forecast horizon, alert preferences |
-| 📤 **Export** | Backup all collections to timestamped JSON files |
-| 🎨 **Earth Theme** | Custom "Earth & Forest" design system with Fraunces + Nunito Sans |
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Backend** | Python 3.10+, Flask 3.x, Flask-Login, Flask-WTF |
-| **Database** | MongoDB 7.x with PyMongo |
-| **Frontend** | Bootstrap 5.3, Chart.js 4.x, Jinja2 templates |
-| **Big Data** | PySpark (Hadoop-equivalent; see [Assumptions](#assumptions)) |
-| **Auth** | Werkzeug password hashing, session-based login |
-| **Env Config** | python-dotenv (.env file) |
-
----
-
-## 📁 Folder Structure
-
-```
+```text
 earthscape_website/
-├── app.py                      # Flask application factory & routes
-├── config.py                   # Configuration classes (Dev/Prod)
-├── requirements.txt            # Python dependencies
-├── .env                        # Environment variables (not in git)
-├── README.md                   # ← You are here
-├── USER_GUIDE.md               # Step-by-step usage guide
-│
-├── models/                     # Data models & DB helpers
-│   ├── __init__.py
-│   ├── user.py                 # User model (Flask-Login)
-│   ├── climate_data.py         # Climate CRUD operations
-│   └── forecast.py             # Forecast CRUD operations
-│
-├── routes/                     # Flask Blueprints
-│   ├── __init__.py
-│   ├── auth.py                 # Login / logout / register
-│   ├── dashboard.py            # Dashboard views
-│   ├── api.py                  # JSON API endpoints
-│   ├── alerts.py               # Alert management
-│   ├── admin.py                # Admin panel
-│   └── forecast.py             # Forecast views
-│
-├── templates/                  # Jinja2 HTML templates
-│   ├── base.html               # Master layout
-│   ├── index.html              # Landing page
-│   ├── login.html              # Login page
-│   ├── dashboard.html          # Main dashboard
-│   ├── history.html            # Historical data explorer
-│   ├── forecast.html           # Forecast view
-│   ├── live.html               # Live monitor
-│   ├── alerts.html             # Alert list
-│   ├── settings.html           # Settings panel
-│   └── admin/                  # Admin sub-templates
-│       ├── users.html
-│       └── data.html
-│
-├── static/
-│   ├── css/
-│   │   └── style.css           # Earth & Forest theme
-│   ├── js/
-│   │   └── charts.js           # Chart.js initialization
-│   └── img/                    # Static images
-│
-├── scripts/
-│   ├── load_data.py            # Synthetic data generator & loader
-│   ├── create_admin.py         # Create default admin/analyst users
-│   ├── export_backup.py        # Export all collections to JSON
-│   └── spark_batch.py          # PySpark batch processing job
-│
-├── spark_jobs/                 # PySpark job definitions
-│   └── anomaly_detection.py
-│
-├── backups/                    # Auto-generated backup directory
-│   └── backup_YYYYMMDD_HHMMSS/
-│
-└── tests/                      # Unit & integration tests
-    ├── test_routes.py
-    └── test_models.py
+├── app.py, config.py, db.py, alerts.py, model_loader.py
+├── model/                         # supplied direct model + metadata
+├── scripts/                       # CSV loader, first-user seed, JSON backup
+├── data/cleaned/                  # user-provided notebook CSV exports
+├── templates/                     # public home, login, dashboard and app pages
+├── static/css/style.css
+├── static/js/charts.js
+├── requirements.txt
+├── .env.example
+├── README.md
+└── USER_GUIDE.md
 ```
 
----
+## Requirements and installation (Windows)
 
-## 🚀 Installation (Windows)
-
-### Prerequisites
-
-- **Python 3.10+** — [Download](https://www.python.org/downloads/)
-- **MongoDB 7.x** — [Download Community](https://www.mongodb.com/try/download/community) or use MongoDB Atlas
-- **Git** — [Download](https://git-scm.com/download/win)
-
-### Step-by-Step Setup
+1. Install Python 3.10+ and create a MongoDB Atlas database user with access to the `earthscape` database. Atlas SRV connections use TLS in transit.
+2. In PowerShell, enter the `earthscape_website` directory and set up the environment:
 
 ```powershell
-# 1. Clone / navigate to the project
-cd "C:\Users\asp.APTECHNK1\Desktop\climate weather e-project"
+py -3.10 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
 
-# 2. Create a virtual environment
-python -m venv venv
-.\venv\Scripts\Activate.ps1
+3. Edit `.env` locally. Set a new `SECRET_KEY`, the rotated Atlas `MONGO_URI`, and unique admin and analyst credentials (at least 12 characters). Never commit `.env` or paste the URI into source code.
+4. Copy the saved `direct_models.pkl` and `metadata.json` into `model/` if they are not already there. The provided `v3_direct_20261118_1335` folder contains these two files; they match the model files shipped in `model/`.
+5. The supplied NASA, NOAA MLO, and OWID source files are in `data/source/`, and their cleaned exports are already in `data/cleaned/`. To regenerate the exports after replacing a source file, run:
 
-# 3. Install dependencies
-pip install -r earthscape_website\requirements.txt
+```powershell
+python scripts/prepare_data.py
+```
 
-# 4. Configure environment
-#    Copy the example and edit values:
-copy earthscape_website\.env.example earthscape_website\.env
-#    Edit .env with your MongoDB URI, secret key, etc.
+This creates `monthly_climate.csv` (`year,month,temp_anomaly,co2_ppm,oni,is_anomaly,anomaly_method,source`), `annual_ghg.csv`, `arctic_ice.csv`, and `forecast.csv` from the supplied NASA, NOAA MLO, NOAA CPC ONI, OWID, and NSIDC files plus the executed notebook forecast output. ONI is aligned by calendar month and forward-filled by at most three months, matching the supplied notebook. Anomaly flags use robust-z scoring of residuals from the trailing 12-month temperature level, compared with the previous 120 months; no model is retrained. Invalid rows are reported and skipped. The data loader uses natural-key upserts, preserves missing optional values as null, and records each import in the audit collection to invalidate in-memory app caches without expanding the settings schema. See [data/cleaned/README.md](data/cleaned/README.md) for field definitions.
 
-# 5. Ensure MongoDB is running
-#    (If using local MongoDB)
-net start MongoDB
-#    Or start mongod manually
+6. Load data and create initial accounts:
 
-# 6. Load synthetic data
-cd earthscape_website
+```powershell
 python scripts/load_data.py
-
-# 7. Create default users
 python scripts/create_admin.py
+```
 
-# 8. Run the application
+The first account script creates an Admin from `ADMIN_USERNAME` and `ADMIN_PASSWORD`. It also creates the optional demo Analyst from `ANALYST_USERNAME` and `ANALYST_PASSWORD`. Existing accounts are left unchanged; passwords are not printed.
+
+7. Start the local app:
+
+```powershell
 python app.py
 ```
 
-The app will start at **http://127.0.0.1:5000**
+Open `http://127.0.0.1:5000`. For production, run Gunicorn behind a TLS reverse proxy, use `FLASK_ENV=production`, and set a strong `SECRET_KEY`.
 
----
+## MongoDB document schema
 
-## 🔐 Environment Setup (.env)
+| Collection | Natural key / fields |
+|---|---|
+| `monthly_climate` | One per year+month: `year`, `month`, `date` (`YYYY-MM-01`), `temp_anomaly`, `co2_ppm` (null before 1958), `oni`, `is_anomaly`, `anomaly_method`, `source` |
+| `annual_ghg` | One per country+year: `year`, `country`, `co2_emissions`, `total_ghg`, `methane`, `nitrous_oxide`, `source` |
+| `arctic_ice` | One per month: `month`, `extent_million_km2`, `source` |
+| `forecast` | One per `month`: `month`, `forecast`, `lower`, `upper`, `model_version`, `generated_at` |
+| `alerts` | One per forecast month: `month`, `forecast_value`, `threshold_used`, `level`, `message`, `created_at`, `acknowledged` |
+| `users` | `username`, `password_hash`, `role`, `full_name`, `email`, `is_active`, `created_at` |
+| `feedback` | `user_id`, `username`, `category`, `subject`, `message`, `status`, `admin_reply`, `created_at` |
+| `settings` | One `key: alert_threshold` document with `value`, `updated_by`, `updated_at` |
+| `audit` | `username`, `action`, `details`, `timestamp`; includes login, logout, admin actions and request timings |
+| `analysis_results` | Optional notebook-produced summary document with `key: latest`; the Analysis page uses SRS reference values when this summary is absent |
 
-Create a `.env` file in `earthscape_website/`:
+Indexes cover monthly dates/natural keys, annual country/year, Arctic ice, forecast and alert months, usernames, feedback ownership and audit time. `analysis_results` is optional and read by its key; large Parquet/NetCDF files remain outside MongoDB, which stores only website-ready rows.
 
-```ini
-# Flask
-FLASK_SECRET_KEY=your-super-secret-key-change-me
-FLASK_ENV=development
-FLASK_DEBUG=1
+## Verified model and forecast
 
-# MongoDB
-MONGO_URI=mongodb://localhost:27017/earthscape
+The model is a direct ensemble, one model set per horizon (1–12). Each set averages Ridge, Random Forest and Gradient Boosting outputs. The model stores the feature columns and interval half-widths; the app reads both from the pickle. The horizon-1 evaluation is RMSE 0.101, R² 0.701, skill vs persistence +0.204 and interval coverage 90.6%. The metadata file itself does not contain evaluation metrics; these verified figures come from the supplied SRS.
 
-# PySpark (optional)
-SPARK_MASTER=local[*]
-SPARK_APP_NAME=EarthScapeClimate
+| Month | Forecast °C | Lower | Upper |
+|---|---:|---:|---:|
+| 2026-11 | 1.501 | 1.335 | 1.667 |
+| 2026-12 | 1.540 | 1.334 | 1.747 |
+| 2027-01 | 1.527 | 1.295 | 1.758 |
+| 2027-02 | 1.496 | 1.263 | 1.729 |
+| 2027-03 | 1.476 | 1.242 | 1.709 |
+| 2027-04 | 1.393 | 1.160 | 1.626 |
+| 2027-05 | 1.356 | 1.123 | 1.589 |
+| 2027-06 | 1.345 | 1.111 | 1.580 |
+| 2027-07 | 1.348 | 1.101 | 1.594 |
+| 2027-08 | 1.332 | 1.079 | 1.585 |
+| 2027-09 | 1.345 | 1.092 | 1.598 |
+| 2027-10 | 1.353 | 1.099 | 1.606 |
 
-# Alert Settings
-ALERT_THRESHOLD=1.50
+All temperature values are anomalies in °C on the NASA GISTEMP 1951–1980 baseline. NOAA CO₂ is in ppm. The default alert threshold 1.50 °C on this scale is about 1.73 °C above pre-industrial; the Paris 1.5 °C limit above pre-industrial is about 1.27 °C on this scale.
+
+Alert rule: `F >= T` is CRITICAL; else `F >= 0.9 × T` is WARNING; otherwise OK. At `T=1.50`, expected counts are 3 CRITICAL, 5 WARNING and 4 OK.
+
+## Data and processing assumptions
+
+- NASA GISS monthly temperature is a processed satellite + weather-station tabular product; the website does not claim raw satellite-image processing.
+- NOAA Mauna Loa CO₂ and CPC ONI are stored in the monthly climate collection. OWID annual emissions are stored in `annual_ghg`.
+- PySpark + Spark SQL with partitioned Parquet are the accepted notebook-side alternative to Hadoop/HDFS/MapReduce/Impala; Hadoop installation is not required by the web app.
+- Chart.js provides the Tableau-style dashboard. RStudio is not used; analysis is in Python. JSON and NetCDF-derived tabular exports can be added by extending the loader mapping.
+- The Live Monitor replays stored months and quarantines a sudden point-to-point jump for demonstration. It does not call an external live API.
+- The Flask retrain control only records an Admin request. Actual training and champion/challenger evaluation stay in the offline notebook.
+- Nature photography in the landing/dashboard design is loaded from Unsplash URLs; the website remains functional if an image host is unavailable.
+
+## Security, reliability and scaling
+
+- Keep Atlas URI, `SECRET_KEY`, and seed passwords in `.env`; `.env` is git-ignored. The example file contains placeholders only. Never log a password or connection string.
+- Atlas provides encryption at rest; its SRV connection uses TLS in transit. Store only account data needed for access and user-owned feedback. Analysts can read only their own feedback; Admin routes are role-protected.
+- Use a strong random secret, HTTPS in production, secure session cookies, and unique account passwords. Change seed passwords after first sign-in.
+- Target 99% availability during demonstration periods; communicate maintenance in advance. If MongoDB is unavailable, protected pages show a friendly retry message. A missing model disables prediction only.
+- Enable Atlas automated backups/snapshots in the Atlas cluster settings when the selected tier and cost are acceptable. The reviewed Atlas change would move this project from Free to AWS M30 ($0.51/hour) plus backup storage, so it was cancelled; the current cluster therefore has no Atlas snapshots enabled. Make an additional local JSON export with `python scripts/export_backup.py`; run it on a regular schedule and store copies separately from the application host.
+- The application uses signed client-side sessions and can run as multiple Flask/Gunicorn instances behind a TLS reverse proxy/load balancer. MongoDB Atlas cluster capacity can be scaled separately.
+
+## SRS traceability
+
+| SRS item | Implementation |
+|---|---|
+| FR-1 Auth/RBAC/audit | `/login`, `/logout`, `login_required`, `admin_required`, `audit`, hashed users |
+| FR-2 Ingestion | `scripts/load_data.py`: CSV validation, row reports, natural-key upserts, source labels |
+| FR-3 Storage | Nine website collections and indexes in `db.py`; optional `analysis_results`; model/large files remain files |
+| FR-4 Processing display | `/analysis`: Spark summary, correlation, residual metrics/months, ONI, Arctic/Tropics/sea-ice results |
+| FR-5 Simulated live | `/live`, `/api/live_data`; replay chart and quarantine queue; no external live API |
+| FR-6 Prediction/models | `/predict`, `/forecast`, `/models`; pickle loaded once, selected horizon, ensemble + interval, fallback to stored output |
+| FR-7 Visualization | `/dashboard`, `/api/chart/history`, `/api/chart/forecast`; KPI, history, CO₂, comparison, forecast and annual GHG charts; filters and line/bar toggle |
+| FR-8 Alerts | `alerts.py`, `/alerts`, `/threshold`; regenerated after threshold change, Admin acknowledgement, color-coded levels |
+| FR-9 Feedback | `/feedback` user-owned inbox; `/admin/feedback` status filtering/reply/close |
+| FR-10 Deliverable support | This README, `USER_GUIDE.md`, test-data description and demo script below |
+| NFR-1 Performance | Startup model loading, indexes, paginated explorer, bounded lists, chart JSON APIs, process-local KPI/forecast cache invalidated by data revision and threshold |
+| NFR-2 Monitoring | `/health`, recent audit timings/actions on model page |
+| NFR-3 Security | Environment-only secrets, password hashes, CSRF, server-side roles, input bounds |
+| NFR-4 Reliability | Friendly database/model errors, Atlas backup note, local JSON export script |
+| NFR-5 Scalability | Signed stateless sessions, Gunicorn/reverse-proxy and Atlas scale guidance |
+| NFR-6 Compliance | Source units/baseline labelled; data loader separated from web routes |
+| NFR-7 Documentation | Installation, assumptions, schema, FAQ/user guide, flows and traceability |
+| NFR-8 Usability | Responsive Bootstrap layout, role badge, flash feedback and consistent alert colors |
+
+## Test data and acceptance checklist
+
+The supplied training sources include 1,762 NASA temperature months (1880–2026), 823 NOAA MLO CO₂ observations, and the original OWID file (56,269 rows × 79 columns). The app-ready OWID output contains 44,008 country/year rows with CO₂ or total GHG. CPC ONI supplies 921 months through 2026-09 plus the notebook's one-month forward fill; NSIDC adds 576 Arctic extent months. The model's ONI lag features are populated. Its verified 12-month output is tabulated above. At threshold 1.50, the stored forecast yields 3/5/4 alert counts. The seeded demo usernames are `earthscape_admin` and `earthscape_analyst`; their passwords are read from local `.env` and are never printed by the seed script.
+
+Acceptance walkthrough: Admin sign in → dashboard charts → run horizon prediction → change threshold and inspect regenerated alert counts → acknowledge an alert → reply to feedback → view health → log out → Analyst sign in → submit feedback → attempt `/threshold` and `/users` and receive 403. Also check the stored forecast table, missing-model prediction message and friendly database-disconnected page.
+
+## Demo video outline
+
+1. Sign in as Admin; tour overview and source units.
+2. Run a prediction and show the interval, then open the 12-month forecast.
+3. Change the threshold; show the new alert levels and counts.
+4. Reply to a feedback request and show the health page.
+5. Log out; sign in as Analyst; submit feedback and show the blocked threshold page.
+
+Recorded walkthrough: [`deliverables/demo_walkthrough.mp4`](deliverables/demo_walkthrough.mp4). It demonstrates the Admin dashboard, a live prediction, forecast, threshold change and regenerated alerts, analysis/model pages, feedback reply, then the Analyst feedback flow and blocked Admin-only threshold route. The demo threshold and temporary feedback are cleaned up after recording; the stored threshold is restored to 1.50 with 3/5/4 alert counts.
+
+Responsive browser QA: every Admin page was opened at 1440, 1024, 768, and 390 px widths; every Analyst page was opened at 390 px. No horizontal overflow or route failures were found. Dashboard screenshots are in `deliverables/qa/`.
+
+## Flow diagrams
+
+```mermaid
+flowchart TD
+  A[NASA, NOAA, ONI, OWID sources] --> B[Cleaned notebook CSV outputs]
+  B --> C[Validated upsert loader]
+  C --> D[(MongoDB Atlas website collections)]
+  A --> P[Notebook PySpark and model workflow]
+  P --> M[Saved champion v3_direct]
+  D --> W[Flask climate portal]
+  M --> W
+  W --> V[Dashboard, explorer, analysis, prediction, alerts]
+  V --> U[Admin and Analyst]
+  U --> F[Feedback to Admin]
 ```
 
----
+```mermaid
+flowchart TD
+  A[Open portal] --> B{Signed in?}
+  B -- No --> C[Login]
+  C --> D[Verify hashed credentials]
+  D --> E{Valid and active?}
+  E -- No --> C
+  E -- Yes --> F[Create signed session]
+  F --> G{Role}
+  G -- Admin --> H[Full workspace and admin controls]
+  G -- Analyst --> I[Read and analyst actions]
+  I --> J{Admin-only URL?}
+  J -- Yes --> K[403 Access denied]
+```
 
-## 👤 Default Admin Credentials
+```mermaid
+flowchart TD
+  A[Select horizon 1–12] --> B{Model loaded?}
+  B -- No --> C[Show model error]
+  B -- Yes --> D[Read latest temperature and ONI]
+  D --> E{Features available?}
+  E -- No --> F[Show matching stored forecast]
+  E -- Yes --> G[Build direct horizon feature row]
+  G --> H[Average Ridge, RF, GB deviations]
+  H --> I[Add baseline and interval]
+  I --> J[Classify alert and display]
+```
 
-| Username | Password | Role |
-|----------|----------|------|
-| `admin` | `Admin@123` | Admin |
-| `analyst` | `Analyst@123` | Analyst |
+```mermaid
+flowchart TD
+  A[12 stored forecast months] --> B[Read threshold T]
+  B --> C{Forecast F ≥ T?}
+  C -- Yes --> D[CRITICAL]
+  C -- No --> E{F ≥ 0.9 × T?}
+  E -- Yes --> F[WARNING]
+  E -- No --> G[OK]
+  D --> H[Replace alerts by month]
+  F --> H
+  G --> H
+  H --> I[Dashboard and Alerts page]
+  I --> J[Admin may acknowledge]
+```
 
-> [!CAUTION]
-> **Change default passwords immediately in production environments!**
+```mermaid
+flowchart TD
+  A[Analyst or Admin submits feedback] --> B[Save as open]
+  B --> C[Admin reads inbox]
+  C --> D{Reply or close?}
+  D -- Reply --> E[Save reply and replied status]
+  D -- Close --> F[Save closed status]
+  E --> G[Owner sees status and reply]
+  F --> G
+```
 
----
+```mermaid
+flowchart TD
+  A[Admin changes threshold] --> B[Validate positive value]
+  B --> C[Save settings]
+  C --> D[Regenerate alerts for all months]
+  D --> E[Write audit event]
+  E --> F[Show updated severity counts]
+```
 
-## 📡 API Endpoints
+```mermaid
+flowchart LR
+  Admin[Admin] --> System[EarthScape Climate Analytics]
+  Analyst[Analyst] --> System
+  Sources[NASA, NOAA, ONI, OWID, NSIDC] --> System
+  System --> Mongo[(MongoDB collections)]
+  System --> Model[(Saved model files)]
+  System --> Admin
+  System --> Analyst
+  Analyst -->|Feedback| System
+```
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/chart/history` | GET | Temperature + CO₂ time series (supports `start_year`, `end_year` params) |
-| `/api/chart/forecast` | GET | 12-month forecast with confidence bands |
-| `/api/alerts` | GET | Active alerts list |
-| `/api/settings` | GET/POST | Read/update application settings |
-| `/api/kpi` | GET | Dashboard KPI summary |
+```mermaid
+flowchart TD
+  A[Open portal] --> B{Signed in?}
+  B -- No --> C[Login with hashed password check]
+  C --> D{Valid and active?}
+  D -- No --> C
+  D -- Yes --> E[Signed session]
+  E --> F{Role}
+  F -- Admin --> G[All admin and viewer actions]
+  F -- Analyst --> H[Viewer and feedback actions]
+  H --> I{Admin-only route?}
+  I -- Yes --> J[403 Access Denied]
+```
 
----
+```mermaid
+flowchart TD
+  A[Prediction request] --> B{Model loaded?}
+  B -- No --> X[Prediction-only model error]
+  B -- Yes --> C[Read latest monthly climate + ONI]
+  C --> D{Features available?}
+  D -- No --> E[Show matching stored forecast]
+  D -- Yes --> F[Read model cols and build feature row]
+  F --> G[Average Ridge, RF and GB for horizon]
+  G --> H[Add base; apply interval half-width]
+  E --> I[Classify using current threshold]
+  H --> I
+  I --> J[Display forecast and alert level]
+```
 
-## 🔮 12-Month Forecast (Nov 2026 → Oct 2027)
-
-| Month | Forecast (°C) | Lower Bound | Upper Bound | Status |
-|-------|--------------|-------------|-------------|--------|
-| 2026-11 | 1.501 | 1.335 | 1.667 | 🔴 Above threshold |
-| 2026-12 | 1.540 | 1.334 | 1.747 | 🔴 Above threshold |
-| 2027-01 | 1.527 | 1.295 | 1.758 | 🔴 Above threshold |
-| 2027-02 | 1.496 | 1.263 | 1.729 | 🟡 Near threshold |
-| 2027-03 | 1.476 | 1.242 | 1.709 | 🟡 Near threshold |
-| 2027-04 | 1.393 | 1.160 | 1.626 | 🟢 Below threshold |
-| 2027-05 | 1.356 | 1.123 | 1.589 | 🟢 Below threshold |
-| 2027-06 | 1.345 | 1.111 | 1.580 | 🟢 Below threshold |
-| 2027-07 | 1.348 | 1.101 | 1.594 | 🟢 Below threshold |
-| 2027-08 | 1.332 | 1.079 | 1.585 | 🟢 Below threshold |
-| 2027-09 | 1.345 | 1.092 | 1.598 | 🟢 Below threshold |
-| 2027-10 | 1.353 | 1.099 | 1.606 | 🟢 Below threshold |
-
-Threshold = **1.50 °C** (configurable in Settings).
-
----
-
-## 🔄 Assumptions
-
-### Hadoop → PySpark
-
-The original SRS specifies **Hadoop** for big-data processing. This implementation uses **PySpark** as a modern, functionally equivalent alternative:
-
-| SRS Requirement | Implementation |
-|----------------|----------------|
-| Hadoop MapReduce batch jobs | PySpark batch processing (`spark_batch.py`) |
-| HDFS data storage | MongoDB collections (accessible via PySpark MongoDB connector) |
-| Hive queries | PySpark SQL DataFrames |
-| Cluster processing | `local[*]` mode (scales to cluster with config change) |
-
-**Rationale:** PySpark provides the same distributed computing capabilities with simpler setup, native Python integration, and direct MongoDB connectivity — eliminating the need for a full Hadoop cluster in development.
-
----
-
-## 📋 SRS Traceability Matrix
-
-| SRS ID | Requirement | Implementation | Status |
-|--------|-------------|----------------|--------|
-| FR-01 | User authentication & role-based access | Flask-Login + MongoDB users collection | ✅ |
-| FR-02 | Dashboard with real-time KPIs | `/dashboard` route + Chart.js | ✅ |
-| FR-03 | Historical climate data visualization | `/history` + `/api/chart/history` | ✅ |
-| FR-04 | Temperature anomaly detection | `is_anomaly` flag + statistical residual | ✅ |
-| FR-05 | CO₂ concentration tracking | Keeling curve data + CO₂ chart | ✅ |
-| FR-06 | ENSO (ONI) index monitoring | ONI values in monthly_climate | ✅ |
-| FR-07 | 12-month temperature forecast | ARIMA/ETS → forecast collection | ✅ |
-| FR-08 | Threshold-based alerting | Configurable threshold + auto-alerts | ✅ |
-| FR-09 | Big data batch processing | PySpark jobs (Hadoop equivalent) | ✅ |
-| FR-10 | Live sensor monitoring | `/live` page + simulated feed | ✅ |
-| FR-11 | Data export & backup | `export_backup.py` → JSON files | ✅ |
-| FR-12 | Admin user management | CRUD via `/admin/users` | ✅ |
-| FR-13 | Settings management | `/settings` + DB persistence | ✅ |
-| NFR-01 | Responsive UI | Bootstrap 5 responsive grid | ✅ |
-| NFR-02 | Secure password storage | Werkzeug PBKDF2 hashing | ✅ |
-| NFR-03 | CSRF protection | Flask-WTF CSRF tokens | ✅ |
-| NFR-04 | Environment-based config | python-dotenv .env file | ✅ |
-
----
-
-## 🔒 Security Notes
-
-- **Passwords** are hashed using Werkzeug's PBKDF2-SHA256 (never stored in plain text)
-- **Sessions** use Flask's signed cookies with `FLASK_SECRET_KEY`
-- **CSRF** protection enabled on all forms via Flask-WTF
-- **Role checks** enforce admin-only access to user management and settings
-- **Input validation** on all form submissions
-- **MongoDB injection** mitigated via PyMongo's parameterized queries
-- `.env` file excluded from version control (add to `.gitignore`)
-
----
-
-## 🧪 Test Data
-
-The `load_data.py` script generates:
-
-| Collection | Records | Description |
-|------------|---------|-------------|
-| `monthly_climate` | ~1,762 | Monthly temp anomaly, CO₂, ONI (1880–2026) |
-| `forecast` | 12 | Temperature forecast (Nov 2026 – Oct 2027) |
-| `alerts` | ~20–40 | Auto-generated from recent breaches |
-| `settings` | 1 | Global configuration document |
-| `users` | 2 | Admin + Analyst (via `create_admin.py`) |
-
-Data uses **UPSERT** operations — safe to re-run without creating duplicates.
-
----
-
-## 🎬 Demo Video Script
-
-For a 5–7 minute walkthrough:
-
-| Time | Section | What to Show |
-|------|---------|-------------|
-| 0:00 | Intro | Project overview, tech stack slide |
-| 0:30 | Landing Page | Scroll through public page, KPI stats band |
-| 1:00 | Login | Login as admin, show auth flow |
-| 1:30 | Dashboard | KPI cards, temperature history chart, year filter, chart type toggle |
-| 2:30 | CO₂ & Dual-Axis | Switch to CO₂ tab, show dual-axis correlation |
-| 3:00 | Forecast | Forecast chart with confidence bands, threshold line |
-| 3:30 | Live Monitor | Start live feed, show spike detection, pause/resume |
-| 4:00 | Alerts | Show alert list, severity badges, acknowledge action |
-| 4:30 | Settings | Change threshold, show effect on alerts |
-| 5:00 | Admin Panel | User management CRUD, role assignment |
-| 5:30 | PySpark Job | Run `spark_batch.py`, show output |
-| 6:00 | Export | Run `export_backup.py`, show JSON files |
-| 6:30 | Wrap-up | Summary, SRS traceability, Q&A |
-
----
-
-## 📄 License
-
-This project is developed for academic/educational purposes as part of the Climate Weather E-Project.
-
----
-
-<p align="center">
-  <strong>🌱 EarthScape Climate Agency — Monitoring Our Planet's Pulse</strong>
-</p>
+```mermaid
+flowchart TD
+  A[12 stored forecast months] --> B[Read alert threshold T]
+  B --> C{F >= T?}
+  C -- Yes --> D[CRITICAL]
+  C -- No --> E{F >= 0.9 x T?}
+  E -- Yes --> F[WARNING]
+  E -- No --> G[OK]
+  D --> H[Replace monthly alerts]
+  F --> H
+  G --> H
+  H --> I[Dashboard and Alerts page; Admin may acknowledge]
+```

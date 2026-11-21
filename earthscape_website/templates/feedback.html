@@ -17,17 +17,15 @@
                 <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:1.5rem;">
                     <i class="bi bi-pencil-square me-1"></i> Submit Feedback
                 </h5>
-                <form method="POST" action="{{ url_for('feedback') }}">
+                <form method="POST" action="{{ url_for('feedback') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="category" class="form-label fw-bold" style="color:var(--ink);font-size:0.9rem;">
                             <i class="bi bi-tag me-1"></i> Category
                         </label>
                         <select class="form-select" id="category" name="category" style="border-radius:12px;padding:0.65rem 1rem;">
-                            <option value="general">General Feedback</option>
-                            <option value="bug">Bug Report</option>
-                            <option value="feature">Feature Request</option>
-                            <option value="data">Data Quality Issue</option>
-                            <option value="ui">UI / UX Suggestion</option>
+                            <option value="support">Support request</option>
+                            <option value="issue">Report an issue</option>
+                            <option value="feedback">Feedback</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -74,13 +72,13 @@
                     <small style="color:var(--sage);opacity:0.7;">
                         <i class="bi bi-calendar me-1"></i>{{ fb.created_at|default('—') }}
                     </small>
-                    {% if fb.reply %}
+                    {% if fb.admin_reply %}
                     <div class="mt-2 p-2" style="background:rgba(30,91,63,0.06);border-radius:8px;">
                         <small style="color:var(--forest);font-weight:600;">
                             <i class="bi bi-reply me-1"></i>Admin Reply:
                         </small>
                         <br>
-                        <small style="color:var(--ink);">{{ fb.reply }}</small>
+                            <small style="color:var(--ink);">{{ fb.admin_reply }}</small>
                     </div>
                     {% endif %}
                 </div>

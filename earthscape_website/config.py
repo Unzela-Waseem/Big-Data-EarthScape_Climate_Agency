@@ -14,9 +14,9 @@ class Config:
     """Central configuration read exclusively from environment variables."""
 
     MONGO_URI = os.environ.get("MONGO_URI", "")
-    SECRET_KEY = os.environ.get("SECRET_KEY", "fallback-dev-key-change-me")
-    ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-    ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@12345")
+    SECRET_KEY = os.environ.get("SECRET_KEY")
+    ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME")
+    ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 
     # Pagination
     PAGE_SIZE = 50

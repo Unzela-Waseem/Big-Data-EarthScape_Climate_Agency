@@ -17,7 +17,7 @@
                 <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:1rem;">
                     <i class="bi bi-graph-up-arrow me-1"></i> Forecast Trajectory
                 </h5>
-                <canvas id="forecastDetailChart" height="320"></canvas>
+                <div class="chart-wrap"><canvas id="forecastChart" aria-label="Forecast values with interval and threshold"></canvas></div>
             </div>
         </div>
     </div>
@@ -71,7 +71,7 @@
                             {% for f in forecasts|default([]) %}
                             <tr>
                                 <td class="ps-4 py-2 fw-bold" style="color:var(--ink);">+{{ loop.index }}</td>
-                                <td class="py-2">{{ f.date }}</td>
+                                <td class="py-2">{{ f.month|default('')|string|truncate(7, True, '') }}</td>
                                 <td class="py-2">
                                     <span class="fw-bold" style="color:{% if f.level == 'CRITICAL' %}#D64545{% elif f.level == 'WARNING' %}#F2A007{% else %}var(--forest){% endif %};">
                                         {{ f.forecast }}
@@ -111,62 +111,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const fData = {{ forecast_chart_data|default('{}')|safe }};
-    if (fData.labels && fData.labels.length > 0) {
-        const ctx = document.getElementById('forecastDetailChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: fData.labels,
-                datasets: [
-                    {
-                        label: 'Forecast',
-                        data: fData.forecast,
-                        borderColor: '#1E5B3F',
-                        backgroundColor: 'rgba(30,91,63,0.1)',
-                        fill: false,
-                        tension: 0.3,
-                        pointRadius: 5,
-                        pointBackgroundColor: '#1E5B3F',
-                        borderWidth: 2
-                    },
-                    {
-                        label: 'Upper 95%',
-                        data: fData.upper,
-                        borderColor: 'rgba(214,69,69,0.3)',
-                        backgroundColor: 'rgba(214,69,69,0.05)',
-                        fill: '+1',
-                        borderDash: [5, 5],
-                        pointRadius: 0,
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Lower 95%',
-                        data: fData.lower,
-                        borderColor: 'rgba(127,176,105,0.3)',
-                        backgroundColor: 'rgba(127,176,105,0.05)',
-                        fill: false,
-                        borderDash: [5, 5],
-                        pointRadius: 0,
-                        borderWidth: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { position: 'bottom' } },
-                scales: {
-                    y: { title: { display: true, text: 'Anomaly (°C)' } },
-                    x: { title: { display: true, text: 'Month' } }
-                }
-            }
-        });
-    }
-});
-</script>
 {% endblock %}

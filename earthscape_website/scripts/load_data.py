@@ -1,239 +1,191 @@
 #!/usr/bin/env python3
-"""
-EarthScape Climate Agency — Data Loader (FR-2, FR-3, FR-8)
-==========================================================
-Loads monthly climate data (1880–2026), annual GHG emissions,
-12-month verified forecast, default settings, and auto-generated alerts
-into MongoDB Atlas ('earthscape' database).
-Uses UPSERT on natural keys to avoid duplicates on re-run.
-"""
-
+"""Load cleaned notebook CSV outputs into MongoDB with validation and upserts."""
+import csv
 import os
 import sys
-import math
-import random
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from pymongo import MongoClient, UpdateOne, ASCENDING
+from pymongo import ASCENDING, MongoClient, UpdateOne
 
-# Load environment
-base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(base_dir, '.env'))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(ROOT, ".env"))
+sys.path.insert(0, ROOT)
+from alerts import regenerate_alerts  # noqa: E402
 
-# Also import alerts regeneration logic from app
-sys.path.insert(0, base_dir)
-from alerts import regenerate_alerts
-
-
-def connect_db():
-    """Return the MongoDB earthscape database handle with fallback."""
-    uri = os.getenv('MONGO_URI')
-    if uri:
-        try:
-            print(f"[*] Connecting to MongoDB Atlas URI...")
-            client = MongoClient(uri, serverSelectionTimeoutMS=4000)
-            client.admin.command('ping')
-            db = client['earthscape']
-            print("[✓] Connected to MongoDB Atlas: earthscape")
-            return db
-        except Exception as e:
-            print(f"[!] MongoDB Atlas connection failed: {e}")
-            print("[*] Falling back to local MongoDB server (mongodb://localhost:27017)...")
-    
-    try:
-        client = MongoClient('mongodb://localhost:27017', serverSelectionTimeoutMS=3000)
-        client.admin.command('ping')
-        db = client['earthscape']
-        print("[✓] Connected to local MongoDB: earthscape")
-        return db
-    except Exception as e:
-        print(f"[!] Local MongoDB also failed: {e}")
-        sys.exit(1)
-
-
-def generate_monthly_climate():
-    """
-    Produces 1,762 monthly records (1880-01 to 2026-10) with:
-      - date: 'YYYY-MM-01'
-      - year, month: int
-      - temp_anomaly: NASA GISS global anomaly (°C)
-      - co2_ppm: NOAA Mauna Loa CO2 (null before 1958)
-      - co2: alias for co2_ppm for query compatibility
-      - oni: Oceanic Niño Index (ENSO)
-      - is_anomaly: Residual method detection flag
-      - anomaly_method: 'residual'
-    """
-    records = []
-    random.seed(42)  # strict reproducibility
-
-    oni_phase = 1.25
-
-    for year in range(1880, 2027):
-        end_month = 10 if year == 2026 else 12
-        for month in range(1, end_month + 1):
-            t = (year - 1880) + (month - 1) / 12.0
-
-            # Logistic global warming trend + seasonal + noise
-            trend = -0.22 + 1.55 / (1.0 + math.exp(-0.032 * (t - 98)))
-            seasonal = 0.07 * math.sin(2 * math.pi * (month - 1) / 12)
-            noise = random.gauss(0, 0.075)
-
-            # ENSO ONI signal
-            oni_val = 0.85 * math.sin(oni_phase + t * 0.58) + random.gauss(0, 0.25)
-            oni_val = round(max(-2.6, min(2.6, oni_val)), 2)
-            enso_effect = 0.05 * oni_val
-
-            temp_anomaly = round(trend + seasonal + noise + enso_effect, 3)
-
-            # CO2 ppm (Mauna Loa curve from 1958 onward)
-            if year < 1958:
-                co2_val = None
-            else:
-                t_co2 = year - 1958 + (month - 1) / 12.0
-                co2_trend = 315.0 + 1.45 * t_co2 + 0.009 * (t_co2 ** 2)
-                co2_seasonal = 3.2 * math.sin(2 * math.pi * (month - 5) / 12)
-                co2_val = round(co2_trend + co2_seasonal + random.gauss(0, 0.25), 2)
-
-            # Residual anomaly detection (residual method: precision 0.89, recall 0.82, F1 0.84)
-            residual = abs(temp_anomaly - trend)
-            is_anomaly = bool(residual > 0.21)
-
-            record = {
-                'date': f"{year}-{month:02d}-01",
-                'year': year,
-                'month': month,
-                'temp_anomaly': temp_anomaly,
-                'co2': co2_val,
-                'co2_ppm': co2_val,
-                'oni': oni_val,
-                'is_anomaly': is_anomaly,
-                'anomaly_method': 'residual',
-                'source': 'NASA GISS / NOAA / ERSSTv5',
-            }
-            records.append(record)
-
-    return records
-
-
-# Verified 12-month forecast produced by the champion model (Nov 2026 - Oct 2027)
-# EXACT values from Section 2 of SRS Prompt
-FORECAST_DATA = [
-    {'horizon': 1,  'year': 2026, 'month': 11, 'month_str': '2026-11', 'date': '2026-11-01', 'forecast': 1.501, 'lower': 1.335, 'upper': 1.667, 'half': round((1.667 - 1.335)/2, 3), 'model_version': 'v3_direct'},
-    {'horizon': 2,  'year': 2026, 'month': 12, 'month_str': '2026-12', 'date': '2026-12-01', 'forecast': 1.540, 'lower': 1.334, 'upper': 1.747, 'half': round((1.747 - 1.334)/2, 3), 'model_version': 'v3_direct'},
-    {'horizon': 3,  'year': 2027, 'month': 1,  'month_str': '2027-01', 'date': '2027-01-01', 'forecast': 1.527, 'lower': 1.295, 'upper': 1.758, 'half': round((1.758 - 1.295)/2, 3), 'model_version': 'v3_direct'},
-    {'horizon': 4,  'year': 2027, 'month': 2,  'month_str': '2027-02', 'date': '2027-02-01', 'forecast': 1.496, 'lower': 1.263, 'upper': 1.729, 'half': round((1.729 - 1.263)/2, 3), 'model_version': 'v3_direct'},
-    {'horizon': 5,  'year': 2027, 'month': 3,  'month_str': '2027-03', 'date': '2027-03-01', 'forecast': 1.476, 'lower': 1.242, 'upper': 1.709, 'half': round((1.709 - 1.242)/2, 3), 'model_version': 'v3_direct'},
-    {'horizon': 6,  'year': 2027, 'month': 4,  'month_str': '2027-04', 'date': '2027-04-01', 'forecast': 1.393, 'lower': 1.160, 'upper': 1.626, 'half': round((1.626 - 1.160)/2, 3), 'model_version': 'v3_direct'},
-    {'horizon': 7,  'year': 2027, 'month': 5,  'month_str': '2027-05', 'date': '2027-05-01', 'forecast': 1.356, 'lower': 1.123, 'upper': 1.589, 'half': round((1.589 - 1.123)/2, 3), 'model_version': 'v3_direct'},
-    {'horizon': 8,  'year': 2027, 'month': 6,  'month_str': '2027-06', 'date': '2027-06-01', 'forecast': 1.345, 'lower': 1.111, 'upper': 1.580, 'half': round((1.580 - 1.111)/2, 3), 'model_version': 'v3_direct'},
-    {'horizon': 9,  'year': 2027, 'month': 7,  'month_str': '2027-07', 'date': '2027-07-01', 'forecast': 1.348, 'lower': 1.101, 'upper': 1.594, 'half': round((1.594 - 1.101)/2, 3), 'model_version': 'v3_direct'},
-    {'horizon': 10, 'year': 2027, 'month': 8,  'month_str': '2027-08', 'date': '2027-08-01', 'forecast': 1.332, 'lower': 1.079, 'upper': 1.585, 'half': round((1.585 - 1.079)/2, 3), 'model_version': 'v3_direct'},
-    {'horizon': 11, 'year': 2027, 'month': 9,  'month_str': '2027-09', 'date': '2027-09-01', 'forecast': 1.345, 'lower': 1.092, 'upper': 1.598, 'half': round((1.598 - 1.092)/2, 3), 'model_version': 'v3_direct'},
-    {'horizon': 12, 'year': 2027, 'month': 10, 'month_str': '2027-10', 'date': '2027-10-01', 'forecast': 1.353, 'lower': 1.099, 'upper': 1.606, 'half': round((1.606 - 1.099)/2, 3), 'model_version': 'v3_direct'},
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(ROOT, "data", "cleaned"))
+OFFICIAL_FORECAST = [
+    ("2026-11-01", 1.501, 1.335, 1.667), ("2026-12-01", 1.540, 1.334, 1.747),
+    ("2027-01-01", 1.527, 1.295, 1.758), ("2027-02-01", 1.496, 1.263, 1.729),
+    ("2027-03-01", 1.476, 1.242, 1.709), ("2027-04-01", 1.393, 1.160, 1.626),
+    ("2027-05-01", 1.356, 1.123, 1.589), ("2027-06-01", 1.345, 1.111, 1.580),
+    ("2027-07-01", 1.348, 1.101, 1.594), ("2027-08-01", 1.332, 1.079, 1.585),
+    ("2027-09-01", 1.345, 1.092, 1.598), ("2027-10-01", 1.353, 1.099, 1.606),
 ]
 
 
-def generate_annual_ghg():
-    """Produces annual GHG emissions from 1970 to 2024 based on OWID."""
-    ghg = []
-    base_ghg = 25000.0  # million tonnes
-    for y in range(1970, 2025):
-        factor = 1.0 + 0.015 * (y - 1970)
-        co2_em = round(base_ghg * 0.73 * factor, 1)
-        tot_ghg = round(base_ghg * factor, 1)
-        ch4 = round(base_ghg * 0.18 * factor, 1)
-        n2o = round(base_ghg * 0.06 * factor, 1)
-        ghg.append({
-            'year': y,
-            'country': 'World',
-            'co2_emissions': co2_em,
-            'total_ghg': tot_ghg,
-            'methane': ch4,
-            'nitrous_oxide': n2o,
-            'source': 'Our World in Data (OWID)',
-        })
-    return ghg
+def csv_rows(filename):
+    path = os.path.join(DATA_DIR, filename)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"Required cleaned CSV not found: {path}")
+    with open(path, newline="", encoding="utf-8-sig") as stream:
+        yield from csv.DictReader(stream)
+
+
+def number(row, key, required=False):
+    value = row.get(key, "")
+    if value is None or str(value).strip() == "":
+        if required:
+            raise ValueError(f"{key} is empty")
+        return None
+    return float(value)
+
+
+def monthly_records():
+    records, skipped = [], 0
+    for line, row in enumerate(csv_rows("monthly_climate.csv"), start=2):
+        try:
+            year = int(row.get("year", ""))
+            month = int(row.get("month", ""))
+            if year < 1880 or not 1 <= month <= 12:
+                raise ValueError("invalid year or month")
+            temp = number(row, "temp_anomaly", required=True)
+            co2 = number(row, "co2_ppm")
+            oni = number(row, "oni")
+            anomaly_text = str(row.get("is_anomaly", "false")).strip().lower()
+            if anomaly_text not in {"true", "false", "1", "0", "yes", "no"}:
+                raise ValueError("is_anomaly must be boolean")
+            records.append({
+                "year": year, "month": month, "date": f"{year:04d}-{month:02d}-01",
+                "temp_anomaly": temp, "co2_ppm": co2, "oni": oni,
+                "is_anomaly": anomaly_text in {"true", "1", "yes"},
+                "anomaly_method": row.get("anomaly_method") or "residual",
+                "source": row.get("source") or "NASA GISS / NOAA / CPC ONI",
+            })
+        except (TypeError, ValueError) as exc:
+            skipped += 1
+            print(f"monthly_climate.csv:{line}: skipped invalid row ({exc})")
+    return records, skipped
+
+
+def ghg_records():
+    records, skipped = [], 0
+    for line, row in enumerate(csv_rows("annual_ghg.csv"), start=2):
+        try:
+            year = int(row.get("year", ""))
+            country = (row.get("country") or "").strip()
+            if year < 1750 or not country:
+                raise ValueError("year or country is missing/invalid")
+            co2 = number(row, "co2_emissions")
+            total_ghg = number(row, "total_ghg")
+            if co2 is None and total_ghg is None:
+                raise ValueError("both CO2 emissions and total GHG are empty")
+            records.append({
+                "year": year, "country": country,
+                "co2_emissions": co2,
+                "total_ghg": total_ghg,
+                "methane": number(row, "methane"),
+                "nitrous_oxide": number(row, "nitrous_oxide"),
+                "source": row.get("source") or "Our World in Data (OWID)",
+            })
+        except (TypeError, ValueError) as exc:
+            skipped += 1
+            print(f"annual_ghg.csv:{line}: skipped invalid row ({exc})")
+    return records, skipped
+
+
+def arctic_records():
+    records, skipped = [], 0
+    for line, row in enumerate(csv_rows("arctic_ice.csv"), start=2):
+        try:
+            month = datetime.strptime(row.get("month", "")[:10], "%Y-%m-%d").strftime("%Y-%m-01")
+            extent = number(row, "extent_million_km2", required=True)
+            if extent <= 0:
+                raise ValueError("extent must be positive")
+            records.append({"month": month, "extent_million_km2": extent,
+                            "source": row.get("source") or "NSIDC Sea Ice Index"})
+        except (TypeError, ValueError) as exc:
+            skipped += 1
+            print(f"arctic_ice.csv:{line}: skipped invalid row ({exc})")
+    return records, skipped
+
+
+def connect_db():
+    uri = os.environ.get("MONGO_URI")
+    if not uri:
+        raise RuntimeError("Set MONGO_URI in earthscape_website/.env before loading data.")
+    client = MongoClient(uri, serverSelectionTimeoutMS=8000)
+    client.admin.command("ping")
+    db = client["earthscape"]
+    # Index natural keys before bulk upserts to keep first and repeat loads fast and unique.
+    db.monthly_climate.create_index([("date", ASCENDING)])
+    db.monthly_climate.create_index([("year", ASCENDING), ("month", ASCENDING)], unique=True)
+    db.annual_ghg.create_index([("year", ASCENDING), ("country", ASCENDING)], unique=True)
+    db.arctic_ice.create_index([("month", ASCENDING)], unique=True)
+    db.forecast.create_index([("month", ASCENDING)], unique=True)
+    db.alerts.create_index([("month", ASCENDING)], unique=True)
+    return client, db
 
 
 def main():
-    db = connect_db()
-    now = datetime.now(timezone.utc)
+    monthly, bad_monthly = monthly_records()
+    ghg, bad_ghg = ghg_records()
+    arctic, bad_arctic = arctic_records()
+    if not monthly or not ghg or not arctic:
+        raise RuntimeError("Monthly climate, annual GHG, and Arctic ice CSVs must contain valid rows; no database changes made.")
+    client, db = connect_db()
+    try:
+        now = datetime.now(timezone.utc)
+        # Record a generation marker in the existing audit collection so app
+        # processes invalidate cached values without expanding the settings schema.
+        db.audit.insert_one({
+            "username": "system", "action": "data_load",
+            "details": {"started_at": now.isoformat()}, "timestamp": now,
+        })
+        db.monthly_climate.bulk_write([
+            UpdateOne({"year": r["year"], "month": r["month"]}, {"$set": r}, upsert=True)
+            for r in monthly
+        ], ordered=False)
+        db.annual_ghg.bulk_write([
+            UpdateOne({"year": r["year"], "country": r["country"]}, {"$set": r}, upsert=True)
+            for r in ghg
+        ], ordered=False)
+        db.arctic_ice.bulk_write([
+            UpdateOne({"month": r["month"]}, {"$set": r}, upsert=True)
+            for r in arctic
+        ], ordered=False)
 
-    # 1. Monthly climate records
-    print("\n[1/5] Ingesting monthly climate data (1880–2026)...")
-    records = generate_monthly_climate()
-    ops = [
-        UpdateOne(
-            {'year': r['year'], 'month': r['month']},
-            {'$set': r},
-            upsert=True
-        )
-        for r in records
-    ]
-    res = db.monthly_climate.bulk_write(ops, ordered=False)
-    print(f"      Upserted: {res.upserted_count}, Modified: {res.modified_count}, Total docs: {db.monthly_climate.count_documents({})}")
-    db.monthly_climate.create_index([("date", ASCENDING)], background=True)
-    db.monthly_climate.create_index([("year", ASCENDING), ("month", ASCENDING)], background=True)
+        forecast_rows = []
+        forecast_path = os.path.join(DATA_DIR, "forecast.csv")
+        if os.path.exists(forecast_path):
+            for line, row in enumerate(csv_rows("forecast.csv"), start=2):
+                try:
+                    month = datetime.strptime(row["month"][:7] + "-01", "%Y-%m-%d").strftime("%Y-%m-01")
+                    forecast_rows.append({"month": month, "forecast": number(row, "forecast", True),
+                                          "lower": number(row, "lower", True), "upper": number(row, "upper", True),
+                                          "model_version": row.get("model_version") or "v3_direct"})
+                except (KeyError, TypeError, ValueError) as exc:
+                    print(f"forecast.csv:{line}: skipped invalid row ({exc})")
+        else:
+            forecast_rows = [dict(month=m, forecast=f, lower=lo, upper=hi, model_version="v3_direct")
+                             for m, f, lo, hi in OFFICIAL_FORECAST]
+        if len(forecast_rows) != 12:
+            raise RuntimeError("Forecast data must contain exactly 12 valid months.")
+        db.forecast.bulk_write([
+            UpdateOne({"month": r["month"]}, {"$set": {**r, "generated_at": now}}, upsert=True)
+            for r in forecast_rows
+        ], ordered=False)
 
-    # 2. Annual GHG
-    print("\n[2/5] Ingesting annual GHG emissions (OWID)...")
-    ghg_records = generate_annual_ghg()
-    ghg_ops = [
-        UpdateOne(
-            {'year': g['year'], 'country': g['country']},
-            {'$set': g},
-            upsert=True
-        )
-        for g in ghg_records
-    ]
-    res_ghg = db.annual_ghg.bulk_write(ghg_ops, ordered=False)
-    print(f"      Upserted: {res_ghg.upserted_count}, Modified: {res_ghg.modified_count}")
-
-    # 3. Forecast
-    print("\n[3/5] Ingesting verified 12-month champion forecast...")
-    for f in FORECAST_DATA:
-        f['generated_at'] = now
-    fc_ops = [
-        UpdateOne(
-            {'horizon': f['horizon']},
-            {'$set': f},
-            upsert=True
-        )
-        for f in FORECAST_DATA
-    ]
-    res_fc = db.forecast.bulk_write(fc_ops, ordered=False)
-    print(f"      Forecast months upserted: {len(FORECAST_DATA)}")
-
-    # 4. Settings
-    print("\n[4/5] Setting initial alert threshold (1.50 °C)...")
-    db.settings.update_one(
-        {'key': 'alert_threshold'},
-        {'$set': {
-            'key': 'alert_threshold',
-            'value': 1.50,
-            'updated_by': 'system_seed',
-            'updated_at': now
-        }},
-        upsert=True
-    )
-
-    # 5. Alerts
-    print("\n[5/5] Regenerating automated operational alerts...")
-    alert_res = regenerate_alerts(db, 1.50)
-    print(f"      Alerts generated: {alert_res['inserted']} total "
-          f"({alert_res['critical']} CRITICAL, {alert_res['warning']} WARNING, {alert_res['ok']} OK)")
-
-    print("\n" + "=" * 55)
-    print("  EARTHSCAPE DATABASE SEEDING COMPLETED SUCCESSFULLY")
-    print("=" * 55)
-    print(f"  monthly_climate : {db.monthly_climate.count_documents({})} docs")
-    print(f"  annual_ghg      : {db.annual_ghg.count_documents({})} docs")
-    print(f"  forecast        : {db.forecast.count_documents({})} docs")
-    print(f"  alerts          : {db.alerts.count_documents({})} docs")
-    print(f"  settings        : {db.settings.count_documents({})} docs")
-    print("=" * 55)
+        db.settings.update_one({"key": "alert_threshold"}, {"$setOnInsert": {
+            "key": "alert_threshold", "value": 1.50, "updated_by": "system_seed", "updated_at": now,
+        }}, upsert=True)
+        result = regenerate_alerts(db)
+        print(f"Loaded {len(monthly)} monthly rows ({bad_monthly} skipped), {len(ghg)} GHG rows ({bad_ghg} skipped), "
+              f"{len(arctic)} Arctic-ice rows ({bad_arctic} skipped), "
+              f"12 forecast months; alerts {result['critical']} CRITICAL / {result['warning']} WARNING / {result['ok']} OK.")
+    finally:
+        client.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

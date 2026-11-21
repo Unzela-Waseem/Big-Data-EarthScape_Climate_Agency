@@ -15,3 +15,14 @@ ENV/
 # Backups & local files
 backups/
 *.log
+
+# Local Python environments and generated delivery bundles
+.venv/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+*.zip
+
+# Temporary demo capture files
+earthscape_website/deliverables/video_tmp/
