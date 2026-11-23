@@ -133,7 +133,9 @@ Alert rule: `F >= T` is CRITICAL; else `F >= 0.9 × T` is WARNING; otherwise OK.
 - Atlas provides encryption at rest; its SRV connection uses TLS in transit. Store only account data needed for access and user-owned feedback. Analysts can read only their own feedback; Admin routes are role-protected.
 - Use a strong random secret, HTTPS in production, secure session cookies, and unique account passwords. Change seed passwords after first sign-in.
 - Target 99% availability during demonstration periods; communicate maintenance in advance. If MongoDB is unavailable, protected pages show a friendly retry message. A missing model disables prediction only.
-- Enable Atlas automated backups/snapshots in the Atlas cluster settings when the selected tier and cost are acceptable. The reviewed Atlas change would move this project from Free to AWS M30 ($0.51/hour) plus backup storage, so it was cancelled; the current cluster therefore has no Atlas snapshots enabled. Make an additional local JSON export with `python scripts/export_backup.py`; run it on a regular schedule and store copies separately from the application host.
+- On Linux, configure cron to run `scripts/run_backup.sh` once a week; it uses the project virtual environment to run `scripts/export_backup.py` from the project folder.
+- Each run saves collection JSON files under `backups/backup_<UTC timestamp>/`; keep copies separately from the application computer.
+- Atlas automated snapshots are a paid extra and are not required by the SRS. The reviewed AWS M30 change ($0.51/hour) plus backup storage was cancelled; the project remains on Free with Atlas snapshots off.
 - The application uses signed client-side sessions and can run as multiple Flask/Gunicorn instances behind a TLS reverse proxy/load balancer. MongoDB Atlas cluster capacity can be scaled separately.
 
 ## SRS traceability
