@@ -48,6 +48,13 @@ def regenerate_alerts(db, threshold=None):
         settings = db.settings.find_one({"key": "alert_threshold"})
         threshold = float(settings["value"]) if settings else 1.50
 
+    # Preserve the current alerts so repeated imports do not notify users
+    # about warnings or critical months that have not actually changed.
+    old_alerts = {
+        str(item.get("month", ""))[:7]: item
+        for item in db.alerts.find({}, {"month": 1, "level": 1, "forecast_value": 1, "threshold_used": 1})
+    }
+
     # --- Fetch forecasts -----------------------------------------------------
     forecasts = list(db.forecast.find({}).sort([("horizon", 1)]))
     if not forecasts:
@@ -57,6 +64,7 @@ def regenerate_alerts(db, threshold=None):
     # --- Build new alerts ----------------------------------------------------
     now = datetime.now(timezone.utc)
     alerts = []
+    changed_severe_alerts = []
     counts = {"CRITICAL": 0, "WARNING": 0, "OK": 0}
 
     for fc in forecasts:
@@ -82,11 +90,41 @@ def regenerate_alerts(db, threshold=None):
             "acknowledged": False,
             "created_at": now,
         })
+        previous = old_alerts.get(str(month)[:7])
+        changed = (
+            previous is None
+            or previous.get("level") != level
+            or previous.get("forecast_value") != forecast_val
+            or previous.get("threshold_used") != threshold
+        )
+        if level in {"CRITICAL", "WARNING"} and changed:
+            changed_severe_alerts.append({
+                "month": month,
+                "level": level,
+                "message": message,
+            })
 
     # --- Replace old alerts (no duplicates) ----------------------------------
     db.alerts.delete_many({})
     if alerts:
         db.alerts.insert_many(alerts)
+
+    if changed_severe_alerts:
+        usernames = db.users.distinct("username")
+        notifications = [
+            {
+                "username": username,
+                "month": alert["month"],
+                "level": alert["level"],
+                "message": alert["message"],
+                "created_at": now,
+                "read": False,
+            }
+            for username in usernames
+            for alert in changed_severe_alerts
+        ]
+        if notifications:
+            db.notifications.insert_many(notifications)
 
     return {
         "inserted": len(alerts),

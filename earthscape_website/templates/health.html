@@ -49,6 +49,16 @@
         </div>
     </div>
 
+    <div class="row g-3 mb-4">
+        {% for label, key, suffix in [('CPU usage','cpu_percent','%'),('RAM usage','ram_percent','%'),('Disk usage','disk_percent','%'),('Average request','avg_request_ms','ms'),('Application uptime','uptime_seconds','s')] %}
+        <div class="col-6 col-lg"><div class="kpi-card"><div class="kpi-note">{{ label }}</div><div class="kpi-value" id="health-{{ key }}">{% if info.metrics[key] is not none %}{{ info.metrics[key] }}{% else %}N/A{% endif %}<small> {{ suffix }}</small></div></div></div>
+        {% endfor %}
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-lg-4"><article class="card h-100"><div class="card-body"><h5 class="chart-title">Memory & storage</h5><p class="mb-2 small" id="healthRamDetail">RAM: {{ info.metrics.ram_used_mb or 'N/A' }} / {{ info.metrics.ram_total_mb or 'N/A' }} MB</p><p class="mb-0 small" id="healthDiskDetail">Disk: {{ info.metrics.disk_used_gb or 'N/A' }} / {{ info.metrics.disk_total_gb or 'N/A' }} GB</p></div></article></div>
+        <div class="col-lg-8"><article class="card chart-card"><div class="card-body"><div class="d-flex justify-content-between align-items-center"><div><h5 class="chart-title">CPU & RAM history</h5><p class="chart-subtitle">Latest up to 200 Admin health samples · refreshed every 60 seconds</p></div><span class="status-pill ok" id="healthMetricsStatus">LOADING</span></div><div class="chart-wrap"><canvas id="cpuRamChart" aria-label="CPU and RAM usage history"></canvas></div></div></article></div>
+    </div>
+
     {% if info.collections %}
     <div class="card card-es p-4 mb-4">
         <h5 class="fw-bold mb-3" style="font-family:'Fraunces', serif;">Storage Collection Record Counts</h5>
@@ -77,6 +87,10 @@
                             {% elif coll == 'settings' %}Alert Threshold and Application Settings
                             {% elif coll == 'audit' %}Administrative Audit and Request Timing Events
                             {% elif coll == 'analysis_results' %}Optional Notebook-Derived Analysis Summaries
+                            {% elif coll == 'live_weather' %}Open-Meteo Current Weather Cache
+                            {% elif coll == 'station_daily' %}Open-Meteo Daily City Weather History
+                            {% elif coll == 'notifications' %}Per-User In-App Alert Notifications
+                            {% elif coll == 'metrics' %}Recent CPU/RAM Health Samples
                             {% else %}Application Datastore{% endif %}
                         </td>
                         <td><span class="badge bg-secondary fs-6">{{ count }} docs</span></td>

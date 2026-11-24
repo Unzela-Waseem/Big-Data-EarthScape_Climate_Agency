@@ -4,7 +4,7 @@ Provides a lazy, singleton connection to the *earthscape* database.
 """
 
 import sys
-from pymongo import MongoClient, ASCENDING
+from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.errors import PyMongoError
 from config import Config
 
@@ -74,6 +74,13 @@ def _ensure_indexes(db):
         db.live_weather.create_index(
             [("city", ASCENDING), ("observed_at", ASCENDING)], unique=True, background=True
         )
+        db.notifications.create_index(
+            [("username", ASCENDING), ("read", ASCENDING), ("created_at", DESCENDING)], background=True
+        )
+        db.station_daily.create_index(
+            [("city", ASCENDING), ("date", ASCENDING)], unique=True, background=True
+        )
+        db.metrics.create_index([("timestamp", DESCENDING)], background=True)
     except Exception as exc:  # noqa: BLE001
         print(f"[db] Index creation warning: {exc}", file=sys.stderr)
 

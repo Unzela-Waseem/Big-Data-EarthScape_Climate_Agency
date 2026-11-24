@@ -12,10 +12,8 @@ from urllib.request import Request, urlopen
 
 LOCATIONS = {
     "karachi": {"name": "Karachi", "latitude": 24.8607, "longitude": 67.0011},
-    "lahore": {"name": "Lahore", "latitude": 31.5204, "longitude": 74.3587},
-    "islamabad": {"name": "Islamabad", "latitude": 33.6844, "longitude": 73.0479},
-    "peshawar": {"name": "Peshawar", "latitude": 34.0151, "longitude": 71.5249},
-    "quetta": {"name": "Quetta", "latitude": 30.1798, "longitude": 66.9750},
+    "london": {"name": "London", "latitude": 51.5072, "longitude": -0.1276},
+    "new_york": {"name": "New York", "latitude": 40.7128, "longitude": -74.0060},
 }
 
 PROVIDER = "Open-Meteo"

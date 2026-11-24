@@ -26,7 +26,7 @@ All role restrictions are enforced by Flask route decorators as well as the menu
 earthscape_website/
 ├── app.py, config.py, db.py, alerts.py, model_loader.py
 ├── model/                         # supplied direct model + metadata
-├── scripts/                       # CSV loader, first-user seed, JSON backup
+├── scripts/                       # CSV loader, optional source fetch, seed and JSON backup
 ├── data/cleaned/                  # user-provided notebook CSV exports
 ├── templates/                     # public home, login, dashboard and app pages
 ├── static/css/style.css
@@ -36,6 +36,21 @@ earthscape_website/
 ├── README.md
 └── USER_GUIDE.md
 ```
+
+## Added live-data and monitoring features
+
+- **Live Monitor:** fetches current conditions for Karachi, London and New York from the no-key Open-Meteo API; temperature, feels-like temperature, humidity and wind refresh every 30 seconds with a small comparison chart. This is weather-model output, not a direct live sensor feed. The separate historical replay remains stored monthly climate data.
+- **In-app alerts:** newly created or changed WARNING/CRITICAL forecast alerts create per-user notifications. The bell polls every 20 seconds, shows unread counts and toast notices, and supports mark-all-read. Notifications stay inside the app; no email or SMS is sent.
+- **Optional source fetch:** run `python scripts/fetch_sources.py` to fetch the prior 30 days of daily model-derived weather for the same cities into `station_daily`. The script also reads `data/source/gistemp_grid.nc` when present, calculates area-weighted monthly anomalies against 1951–1980, inserts missing months and stores supplemental NetCDF values beside existing months without changing the primary model input. If the optional file is absent, it prints a skip message and continues.
+- **Admin health:** `/health` and `/api/health_metrics` show CPU, RAM, disk, uptime and average recent request time, plus a rolling CPU/RAM chart. At most 200 metric samples are retained. If `psutil` is unavailable, host measurements display N/A.
+
+To run the optional fetch after installing requirements and setting `.env`:
+
+```bash
+python scripts/fetch_sources.py
+```
+
+Open-Meteo’s model-based weather data is provided under CC BY 4.0; preserve attribution to [Open-Meteo](https://open-meteo.com/).
 
 ## Requirements and installation (Windows)
 
@@ -81,7 +96,7 @@ Open `http://127.0.0.1:5000`. For production, run Gunicorn behind a TLS reverse 
 
 | Collection | Natural key / fields |
 |---|---|
-| `monthly_climate` | One per year+month: `year`, `month`, `date` (`YYYY-MM-01`), `temp_anomaly`, `co2_ppm` (null before 1958), `oni`, `is_anomaly`, `anomaly_method`, `source` |
+| `monthly_climate` | One per year+month: `year`, `month`, `date` (`YYYY-MM-01`), `temp_anomaly`, `co2_ppm` (null before 1958), `oni`, `is_anomaly`, `anomaly_method`, `source`; optional separate `gistemp_grid_anomaly`/`gistemp_grid_source` |
 | `annual_ghg` | One per country+year: `year`, `country`, `co2_emissions`, `total_ghg`, `methane`, `nitrous_oxide`, `source` |
 | `arctic_ice` | One per month: `month`, `extent_million_km2`, `source` |
 | `forecast` | One per `month`: `month`, `forecast`, `lower`, `upper`, `model_version`, `generated_at` |
@@ -90,9 +105,13 @@ Open `http://127.0.0.1:5000`. For production, run Gunicorn behind a TLS reverse 
 | `feedback` | `user_id`, `username`, `category`, `subject`, `message`, `status`, `admin_reply`, `created_at` |
 | `settings` | One `key: alert_threshold` document with `value`, `updated_by`, `updated_at` |
 | `audit` | `username`, `action`, `details`, `timestamp`; includes login, logout, admin actions and request timings |
+| `live_weather` | One current weather reading per city/provider timestamp; weather-model based |
+| `station_daily` | `city`, `date`, daily mean/max/min temperature, source and fetch time; model-derived, not direct station data |
+| `notifications` | `username`, `month`, `level`, `message`, `created_at`, `read`; private to the matching account |
+| `metrics` | Up to 200 most recent `{timestamp,cpu,ram}` health samples |
 | `analysis_results` | Optional notebook-produced summary document with `key: latest`; the Analysis page uses SRS reference values when this summary is absent |
 
-Indexes cover monthly dates/natural keys, annual country/year, Arctic ice, forecast and alert months, usernames, feedback ownership and audit time. `analysis_results` is optional and read by its key; large Parquet/NetCDF files remain outside MongoDB, which stores only website-ready rows.
+Indexes cover monthly dates/natural keys, annual country/year, Arctic ice, forecast and alert months, usernames, feedback ownership, audit time, current weather, daily city/date, notifications and health samples. `analysis_results` is optional and read by its key; large Parquet/NetCDF files remain outside MongoDB, which stores only website-ready rows.
 
 ## Verified model and forecast
 
@@ -123,7 +142,7 @@ Alert rule: `F >= T` is CRITICAL; else `F >= 0.9 × T` is WARNING; otherwise OK.
 - NOAA Mauna Loa CO₂ and CPC ONI are stored in the monthly climate collection. OWID annual emissions are stored in `annual_ghg`.
 - PySpark + Spark SQL with partitioned Parquet are the accepted notebook-side alternative to Hadoop/HDFS/MapReduce/Impala; Hadoop installation is not required by the web app.
 - Chart.js provides the Tableau-style dashboard. RStudio is not used; analysis is in Python. JSON and NetCDF-derived tabular exports can be added by extending the loader mapping.
-- The Live Monitor replays stored months and quarantines a sudden point-to-point jump for demonstration. It does not call an external live API.
+- The Live Monitor fetches current model-based weather separately from replaying stored monthly global climate observations; the replay quarantines a sudden point-to-point jump for demonstration.
 - The Flask retrain control only records an Admin request. Actual training and champion/challenger evaluation stay in the offline notebook.
 - Nature photography in the landing/dashboard design is loaded from Unsplash URLs; the website remains functional if an image host is unavailable.
 
@@ -146,18 +165,18 @@ Alert rule: `F >= T` is CRITICAL; else `F >= 0.9 × T` is WARNING; otherwise OK.
 | FR-2 Ingestion | `scripts/load_data.py`: CSV validation, row reports, natural-key upserts, source labels |
 | FR-3 Storage | Nine website collections and indexes in `db.py`; optional `analysis_results`; model/large files remain files |
 | FR-4 Processing display | `/analysis`: Spark summary, correlation, residual metrics/months, ONI, Arctic/Tropics/sea-ice results |
-| FR-5 Simulated live | `/live`, `/api/live_data`; replay chart and quarantine queue; no external live API |
+| FR-5 Live data and replay | `/live`, `/api/live_weather` (30-second Open-Meteo current feed), `/api/live_data` (separate stored-month replay and quarantine queue) |
 | FR-6 Prediction/models | `/predict`, `/forecast`, `/models`; pickle loaded once, selected horizon, ensemble + interval, fallback to stored output |
 | FR-7 Visualization | `/dashboard`, `/api/chart/history`, `/api/chart/forecast`; KPI, history, CO₂, comparison, forecast and annual GHG charts; filters and line/bar toggle |
-| FR-8 Alerts | `alerts.py`, `/alerts`, `/threshold`; regenerated after threshold change, Admin acknowledgement, color-coded levels |
+| FR-8 Alerts and notifications | `alerts.py`, `/alerts`, `/threshold`, `/api/notifications`; changed severe alerts notify active users in-app, bell polling/unread badge/toast/mark-read |
 | FR-9 Feedback | `/feedback` user-owned inbox; `/admin/feedback` status filtering/reply/close |
 | FR-10 Deliverable support | This README, `USER_GUIDE.md`, test-data description and demo script below |
 | NFR-1 Performance | Startup model loading, indexes, paginated explorer, bounded lists, chart JSON APIs, process-local KPI/forecast cache invalidated by data revision and threshold |
-| NFR-2 Monitoring | `/health`, recent audit timings/actions on model page |
+| NFR-2 Monitoring | Admin-only `/health` and `/api/health_metrics`; psutil CPU/RAM/disk/uptime, average request timing and bounded rolling CPU/RAM chart |
 | NFR-3 Security | Environment-only secrets, password hashes, CSRF, server-side roles, input bounds |
 | NFR-4 Reliability | Friendly database/model errors, Atlas backup note, local JSON export script |
 | NFR-5 Scalability | Signed stateless sessions, Gunicorn/reverse-proxy and Atlas scale guidance |
-| NFR-6 Compliance | Source units/baseline labelled; data loader separated from web routes |
+| NFR-6 Compliance | Source units/baseline labelled; data loader separated from web routes; Open-Meteo attribution and model-derived data limitation shown |
 | NFR-7 Documentation | Installation, assumptions, schema, FAQ/user guide, flows and traceability |
 | NFR-8 Usability | Responsive Bootstrap layout, role badge, flash feedback and consistent alert colors |
 

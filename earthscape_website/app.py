@@ -45,6 +45,11 @@ from model_loader import (
 )
 from live_weather import LOCATIONS, fetch_current_weather
 
+try:
+    import psutil
+except ImportError:  # Optional at runtime; the health page reports N/A without it.
+    psutil = None
+
 # Suppress sklearn version warnings
 warnings.filterwarnings("ignore")
 
@@ -67,7 +72,8 @@ _MEMORY_CACHE_LOCK = threading.RLock()
 _MEMORY_CACHE_LIMIT = 16
 _LIVE_WEATHER_CACHE = {}
 _LIVE_WEATHER_CACHE_LOCK = threading.RLock()
-_LIVE_WEATHER_CACHE_SECONDS = 600
+_LIVE_WEATHER_CACHE_SECONDS = 25
+_APP_STARTED_MONOTONIC = time.monotonic()
 
 # ---------------------------------------------------------------------------
 # Teardown
@@ -168,7 +174,7 @@ def _start_request_timer():
 def _record_request_time(response):
     """Persist route timing for lightweight application-level monitoring."""
     started = getattr(g, "request_started", None)
-    if started and request.endpoint not in {"static", "health"}:
+    if started and request.endpoint not in {"static", "health", "health_metrics"}:
         try:
             db = get_db()
             if db is not None:
@@ -562,11 +568,123 @@ def live_weather():
     except Exception as exc:  # noqa: BLE001
         app.logger.warning("Current weather refresh failed (%s).", type(exc).__name__)
         if db is not None:
-            previous = db.live_weather.find_one({"city": city}, {"_id": 0}, sort=[("fetched_at_utc", -1)])
-            if previous:
-                previous["status"] = "stale"
-                return jsonify(previous), 200
+            try:
+                previous = db.live_weather.find_one({"city": city}, {"_id": 0}, sort=[("fetched_at_utc", -1)])
+                if previous:
+                    previous["status"] = "stale"
+                    return jsonify(previous), 200
+            except Exception as db_exc:  # noqa: BLE001
+                app.logger.warning("Saved weather reading unavailable (%s).", type(db_exc).__name__)
         return jsonify({"error": "Current weather is temporarily unavailable. Try again later."}), 503
+
+
+@app.route("/api/notifications")
+@login_required
+def notifications_api():
+    """Return the signed-in user's recent in-app notifications."""
+    db = _db_or_error()
+    if db is None:
+        return jsonify({"notifications": [], "unread_count": 0}), 503
+    username = session.get("username", "")
+    records = list(db.notifications.find(
+        {"username": username},
+        {"_id": 1, "month": 1, "level": 1, "message": 1, "created_at": 1, "read": 1},
+    ).sort("created_at", -1).limit(30))
+    unread_count = db.notifications.count_documents({"username": username, "read": False})
+    for item in records:
+        item["id"] = str(item.pop("_id"))
+        created = item.get("created_at")
+        item["created_at"] = created.isoformat() if hasattr(created, "isoformat") else str(created or "")
+        item["month"] = str(item.get("month", ""))[:7]
+    return jsonify({"notifications": records, "unread_count": unread_count})
+
+
+@app.route("/api/notifications/read-all", methods=["POST"])
+@login_required
+def notifications_read_all():
+    db = _db_or_error()
+    if db is None:
+        return jsonify({"error": "Database is temporarily unavailable."}), 503
+    result = db.notifications.update_many(
+        {"username": session.get("username", ""), "read": False},
+        {"$set": {"read": True}},
+    )
+    return jsonify({"updated": result.modified_count})
+
+
+def _health_snapshot(db):
+    """Collect best-effort host and recent request metrics without failing the page."""
+    metrics = {
+        "cpu_percent": None, "ram_percent": None, "ram_used_mb": None, "ram_total_mb": None,
+        "disk_percent": None, "disk_used_gb": None, "disk_total_gb": None,
+        "uptime_seconds": round(time.monotonic() - _APP_STARTED_MONOTONIC),
+        "avg_request_ms": None,
+    }
+    if psutil is not None:
+        try:
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage(os.path.abspath(os.sep))
+            metrics.update({
+                "cpu_percent": psutil.cpu_percent(interval=0.1),
+                "ram_percent": memory.percent,
+                "ram_used_mb": round(memory.used / (1024 ** 2), 1),
+                "ram_total_mb": round(memory.total / (1024 ** 2), 1),
+                "disk_percent": disk.percent,
+                "disk_used_gb": round(disk.used / (1024 ** 3), 2),
+                "disk_total_gb": round(disk.total / (1024 ** 3), 2),
+            })
+        except Exception as exc:  # noqa: BLE001
+            app.logger.warning("Host metrics unavailable (%s).", type(exc).__name__)
+    if db is not None:
+        try:
+            timings = db.audit.find(
+                {"action": "request_timing", "details.duration_ms": {"$type": "number"}},
+                {"_id": 0, "details.duration_ms": 1},
+            ).sort("timestamp", -1).limit(500)
+            durations = [float(row["details"]["duration_ms"]) for row in timings]
+            if durations:
+                metrics["avg_request_ms"] = round(sum(durations) / len(durations), 2)
+        except Exception as exc:  # noqa: BLE001
+            app.logger.warning("Request timing metrics unavailable (%s).", type(exc).__name__)
+    return metrics
+
+
+def _save_health_sample(db, metrics):
+    if db is None:
+        return
+    sample = {
+        "timestamp": _now(),
+        "cpu": metrics.get("cpu_percent"),
+        "ram": metrics.get("ram_percent"),
+    }
+    try:
+        db.metrics.insert_one(sample)
+        excess = db.metrics.count_documents({}) - 200
+        if excess > 0:
+            oldest = list(db.metrics.find({}, {"_id": 1}).sort("timestamp", 1).limit(excess))
+            if oldest:
+                db.metrics.delete_many({"_id": {"$in": [row["_id"] for row in oldest]}})
+        return sample
+    except Exception as exc:  # noqa: BLE001
+        app.logger.warning("Health sample could not be stored (%s).", type(exc).__name__)
+        return None
+
+
+@app.route("/api/health_metrics")
+@admin_required
+def health_metrics():
+    db = get_db()
+    metrics = _health_snapshot(db)
+    _save_health_sample(db, metrics)
+    history = []
+    if db is not None:
+        history = list(db.metrics.find({}, {"_id": 0}).sort("timestamp", -1).limit(200))
+        history.reverse()
+    for point in history:
+        if hasattr(point.get("timestamp"), "isoformat"):
+            point["timestamp"] = point["timestamp"].isoformat()
+    return jsonify({"metrics": metrics, "history": history, "sampled_at": _now().isoformat(),
+                    "psutil_available": psutil is not None})
 
 
 # ==========================================================================
@@ -1088,6 +1206,9 @@ def health():
         "meta_status": meta_status,
         "timestamp": _now().isoformat(),
     }
+    info["metrics"] = _health_snapshot(db)
+    if db is not None:
+        _save_health_sample(db, info["metrics"])
 
     if db is not None:
         info["collections"] = {
@@ -1101,6 +1222,10 @@ def health():
             "settings": db.settings.count_documents({}),
             "audit": db.audit.count_documents({}),
             "analysis_results": db.analysis_results.count_documents({}),
+            "live_weather": db.live_weather.count_documents({}),
+            "station_daily": db.station_daily.count_documents({}),
+            "notifications": db.notifications.count_documents({}),
+            "metrics": db.metrics.count_documents({}),
         }
 
     return render_template("health.html", info=info)
