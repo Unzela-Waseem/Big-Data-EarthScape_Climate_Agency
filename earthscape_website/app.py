@@ -7,6 +7,7 @@ import math
 import os
 import copy
 import threading
+import time
 import warnings
 from datetime import datetime, timezone
 from functools import wraps
@@ -42,6 +43,7 @@ from model_loader import (
     MODEL_READY,
     MODELS,
 )
+from live_weather import LOCATIONS, fetch_current_weather
 
 # Suppress sklearn version warnings
 warnings.filterwarnings("ignore")
@@ -63,6 +65,9 @@ csrf = CSRFProtect(app)
 _MEMORY_CACHE = {}
 _MEMORY_CACHE_LOCK = threading.RLock()
 _MEMORY_CACHE_LIMIT = 16
+_LIVE_WEATHER_CACHE = {}
+_LIVE_WEATHER_CACHE_LOCK = threading.RLock()
+_LIVE_WEATHER_CACHE_SECONDS = 600
 
 # ---------------------------------------------------------------------------
 # Teardown
@@ -522,6 +527,46 @@ def live_data():
     recent = list(db.monthly_climate.find({}, {"_id": 0}).sort([("year", -1), ("month", -1)]).limit(36))
     recent.reverse()
     return jsonify({"records": recent})
+
+
+@app.route("/api/live_weather")
+@login_required
+def live_weather():
+    """Return and store the latest available current-weather observation."""
+    city = request.args.get("city", "karachi").strip().lower()
+    if city not in LOCATIONS:
+        return jsonify({"error": "Choose a supported location."}), 400
+
+    now = time.monotonic()
+    with _LIVE_WEATHER_CACHE_LOCK:
+        cached = _LIVE_WEATHER_CACHE.get(city)
+        if cached and now - cached["cached_at"] < _LIVE_WEATHER_CACHE_SECONDS:
+            return jsonify({**cached["data"], "status": "cached"})
+
+    db = get_db()
+    try:
+        observation = fetch_current_weather(city)
+        observation["fetched_at_utc"] = _now()
+        if db is not None:
+            try:
+                db.live_weather.update_one(
+                    {"city": city, "observed_at": observation["observed_at"]},
+                    {"$set": observation},
+                    upsert=True,
+                )
+            except Exception as exc:  # noqa: BLE001
+                app.logger.warning("Current weather could not be stored (%s).", type(exc).__name__)
+        with _LIVE_WEATHER_CACHE_LOCK:
+            _LIVE_WEATHER_CACHE[city] = {"data": observation, "cached_at": time.monotonic()}
+        return jsonify({**observation, "status": "live"})
+    except Exception as exc:  # noqa: BLE001
+        app.logger.warning("Current weather refresh failed (%s).", type(exc).__name__)
+        if db is not None:
+            previous = db.live_weather.find_one({"city": city}, {"_id": 0}, sort=[("fetched_at_utc", -1)])
+            if previous:
+                previous["status"] = "stale"
+                return jsonify(previous), 200
+        return jsonify({"error": "Current weather is temporarily unavailable. Try again later."}), 503
 
 
 # ==========================================================================

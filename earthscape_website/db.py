@@ -71,6 +71,9 @@ def _ensure_indexes(db):
         db.users.create_index([("username", ASCENDING)], unique=True, background=True)
         db.feedback.create_index([("user_id", ASCENDING), ("created_at", ASCENDING)], background=True)
         db.audit.create_index([("timestamp", ASCENDING)], background=True)
+        db.live_weather.create_index(
+            [("city", ASCENDING), ("observed_at", ASCENDING)], unique=True, background=True
+        )
     except Exception as exc:  # noqa: BLE001
         print(f"[db] Index creation warning: {exc}", file=sys.stderr)
 
