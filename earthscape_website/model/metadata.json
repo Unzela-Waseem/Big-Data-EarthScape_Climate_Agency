@@ -1,0 +1,35 @@
+{
+  "created": "2026-11-18T13:35:28",
+  "feature_set": "C_B+ENSO",
+  "cols": [
+    "dev_lag1",
+    "dev_lag2",
+    "dev_lag3",
+    "dev_lag6",
+    "dev_lag12",
+    "dev_roll3",
+    "dev_roll6",
+    "vol12",
+    "oni_l3",
+    "oni_l4",
+    "oni_l6",
+    "oni_chg"
+  ],
+  "halflife": 120,
+  "params": {
+    "Ridge": {
+      "alpha": 10
+    },
+    "RF": {
+      "n": 200,
+      "depth": 3,
+      "leaf": 10
+    },
+    "GB": {
+      "n": 100,
+      "lr": 0.02
+    }
+  },
+  "trained_until": "2025-10-01",
+  "role": "initial champion"
+}

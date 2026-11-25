@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Model performance — EarthScape{% endblock %}
+{% block crumb %}Model performance{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><h1>Model performance</h1><p>Current champion and notebook-reported evaluation results.</p></div>
+  <span class="status-pill {{ 'ok' if model_ready else 'warning' }}">{{ 'MODEL LOADED' if model_ready else 'MODEL UNAVAILABLE' }}</span>
+</div>
+<article class="card mb-3"><div class="card-body">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div><span class="eyebrow">CURRENT CHAMPION</span><h2 class="h4 mt-2 mb-1">{{ champion.name }}</h2>
+      <p class="text-muted mb-0">Version {{ champion.version }} · feature set {{ feature_set }} · trained through {{ trained_until }}</p></div>
+    {% if is_admin %}<form method="post" action="{{ url_for('retrain') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-forest" type="submit"><i class="bi bi-arrow-repeat me-1"></i>Request retrain</button></form>{% endif %}
+  </div>
+  <p class="mt-3 mb-0">{{ description }} Retraining stays in the offline notebook workflow; this request is recorded in the audit log.</p>
+  <div class="row g-3 mt-2">
+    <div class="col-6 col-lg-3"><div class="kpi-card"><div class="kpi-note">Horizon-1 RMSE</div><div class="kpi-value">{{ metrics.rmse }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="kpi-card"><div class="kpi-note">Horizon-1 R²</div><div class="kpi-value">{{ metrics.r2 }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="kpi-card"><div class="kpi-note">Skill vs persistence</div><div class="kpi-value">+{{ metrics.skill_vs_persistence }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="kpi-card"><div class="kpi-note">Interval coverage</div><div class="kpi-value">{{ (metrics.interval_coverage*100)|round(1) }}%</div></div></div>
+  </div>
+</div></article>
+<div class="row g-3">
+  <div class="col-xl-7"><article class="card h-100"><div class="card-body">
+    <h2 class="h5">Historical model comparison</h2>
+    <p class="text-muted small">Notebook-reported test-set results for comparison only; live predictions use the v3_direct pickle.</p>
+    <div class="table-responsive"><table class="table"><thead><tr><th>Model</th><th>RMSE</th><th>R²</th><th>Skill vs persistence</th></tr></thead><tbody>
+      {% for model in comparison %}<tr><td>{{ model.name }}</td><td>{{ '%.4f'|format(model.rmse) }}</td><td>{{ '%.4f'|format(model.r2) }}</td><td>{{ '%+.4f'|format(model.skill) }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    <div class="p-3 rounded-3" style="background:#edf7f2"><strong>Champion / challenger registry</strong><p class="mb-0 mt-1 small">Models are regularly refined on the latest data; a challenger replaces the champion only if it performs better on test data.</p></div>
+  </div></article></div>
+  <div class="col-xl-5"><article class="card h-100"><div class="card-body">
+    <h2 class="h5">Anomaly detection</h2><p class="text-muted">The residual method is the primary anomaly detector. Isolation Forest is not the headline result.</p>
+    <div class="row g-2"><div class="col-4"><div class="kpi-card"><div class="kpi-note">Precision</div><div class="kpi-value">{{ anomaly_metrics.precision }}</div></div></div><div class="col-4"><div class="kpi-card"><div class="kpi-note">Recall</div><div class="kpi-value">{{ anomaly_metrics.recall }}</div></div></div><div class="col-4"><div class="kpi-card"><div class="kpi-note">F1</div><div class="kpi-value">{{ anomaly_metrics.f1 }}</div></div></div></div>
+  </div></article></div>
+  <div class="col-12"><article class="card"><div class="card-body"><h2 class="h5">Recent application activity</h2><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody>
+    {% for item in recent_actions %}<tr><td>{{ item.timestamp }}</td><td>{{ item.username }}</td><td>{{ item.action }}</td><td>{{ item.details }}</td></tr>{% else %}<tr><td colspan="4" class="text-muted">No audited activity yet.</td></tr>{% endfor %}
+  </tbody></table></div></div></article></div>
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+flask
+Flask-WTF
+pymongo[srv]
+pandas
+numpy
+scikit-learn
+werkzeug
+python-dotenv
+gunicorn
+xarray
+netCDF4
+psutil

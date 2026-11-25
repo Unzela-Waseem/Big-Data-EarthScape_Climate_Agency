@@ -1,0 +1,54 @@
+{% extends 'base.html' %}{% block title %}Sign in — EarthScape{% endblock %}{% block content %}
+<div class="login-layout">
+    <section class="login-photo">
+        {% include '_earth.html' %}
+        <a href="{{ url_for('home') }}" class="brand-lockup login-brand"><span class="brand-mark"><i
+                    class="bi bi-globe-americas"></i></span><span>EarthScape<small>CLIMATE AGENCY</small></span></a>
+        <div class="login-now" aria-live="polite">
+            <p class="login-tag">Climate insights for a changing world.</p>
+            <div class="login-now-row">
+                <div class="login-temp"><span data-wx="temp">--</span><sup>°</sup></div>
+                <div class="login-place">
+                    <div class="login-city" data-wx="city">—</div>
+                    <div class="login-clock" data-wx-clock>--:--</div>
+                </div>
+                <i class="bi bi-cloud-sun login-icon" data-wx="icon"></i>
+            </div>
+        </div>
+    </section>
+
+    <section class="login-panel">
+        <div class="login-card">
+            <a href="{{ url_for('home') }}" class="brand-lockup p-0 mb-4 only-mobile"><span class="brand-mark"><i
+                        class="bi bi-globe-americas"></i></span><span>EarthScape<small>CLIMATE AGENCY</small></span></a>
+            <h1 class="login-title">Welcome back</h1>
+            <p class="login-sub">Use your agency account to continue.</p>
+            <form method="post" action="{{ url_for('login') }}" class="login-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label class="form-label" for="username">Username</label>
+                <input class="form-control mb-4" id="username" name="username" autocomplete="username"
+                    placeholder="Your username" required>
+                <label class="form-label" for="password">Password</label>
+                <input class="form-control mb-4" type="password" id="password" name="password"
+                    autocomplete="current-password" placeholder="Your password" required>
+                <button class="btn btn-glow w-100" type="submit">Sign in securely <i
+                        class="bi bi-arrow-right ms-1"></i></button>
+            </form>
+            <p class="login-note"><i class="bi bi-shield-lock me-1"></i>Access is limited to authorized Admin and
+                Analyst accounts.</p>
+
+            <div class="login-details">
+                <h2 class="login-details-title">Right now · <span data-wx="label">Checking the sky…</span></h2>
+                <div class="ld-row"><span>Feels like</span><b><span data-wx="feels">—</span>°</b><i
+                        class="bi bi-thermometer-half"></i></div>
+                <div class="ld-row"><span>Today's high</span><b><span data-wx="tmax">—</span>°</b><i
+                        class="bi bi-thermometer-sun"></i></div>
+                <div class="ld-row"><span>Humidity</span><b><span data-wx="humidity">—</span>%</b><i
+                        class="bi bi-droplet"></i></div>
+                <div class="ld-row"><span>Wind</span><b><span data-wx="wind">—</span> km/h</b><i class="bi bi-wind"></i>
+                </div>
+                <div class="ld-source" data-wx="source"></div>
+            </div>
+        </div>
+    </section>
+</div>{% endblock %}

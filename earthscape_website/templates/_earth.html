@@ -1,0 +1,10 @@
+{# Rotating Earth. Drop your video at static/video/earth.mp4 (and optionally earth.webm).
+   Until the video plays, a procedural rotating globe is drawn instead. #}
+<div class="earth-stage" data-earth aria-hidden="true">
+  <canvas class="earth-fallback"></canvas>
+  <video autoplay muted loop playsinline preload="auto">
+    <source src="{{ url_for('static', filename='video/earth.webm') }}" type="video/webm">
+    <source src="{{ url_for('static', filename='video/earth.mp4') }}" type="video/mp4">
+  </video>
+  <div class="earth-shade"></div>
+</div>

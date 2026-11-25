@@ -1,0 +1,3 @@
+Place your rotating-Earth video here as:  earth.mp4  (and optionally earth.webm)
+Tips: muted, loopable, 1080p, under ~15 MB, dark space background works best.
+Until a video plays, the site draws its own procedural rotating globe.

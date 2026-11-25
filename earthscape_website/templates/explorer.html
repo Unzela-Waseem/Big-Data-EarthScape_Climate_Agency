@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Data Explorer — EarthScape{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:0.2rem;">
+            <i class="bi bi-table me-2"></i>Data Explorer
+        </h2>
+        <p style="color:var(--sage);margin:0;">Browse and filter climate observation records</p>
+    </div>
+    <form method="GET" class="d-flex gap-2 align-items-center">
+        <label class="fw-bold mb-0" style="color:var(--ink);white-space:nowrap;">Year:</label>
+        <select name="year" class="form-select form-select-sm" style="width:130px;border-radius:10px;" onchange="this.form.submit()">
+            <option value="">All Years</option>
+            {% for y in years|default([]) %}
+            <option value="{{ y }}" {% if y|string() == request.args.get('year','') %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+<div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" style="font-size:0.92rem;">
+                <thead>
+                    <tr style="background:var(--deep-forest);color:white;">
+                        <th class="ps-4 py-3" style="border-radius:16px 0 0 0;">Date</th>
+                        <th class="py-3">Temp Anomaly (°C)</th>
+                        <th class="py-3">CO₂ (ppm)</th>
+                        <th class="py-3">ONI Index</th>
+                        <th class="pe-4 py-3" style="border-radius:0 16px 0 0;">Anomaly Flag</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in records|default([]) %}
+                    <tr>
+                        <td class="ps-4 py-2">{{ row.date }}</td>
+                        <td class="py-2">
+                            <span class="fw-bold" style="color:{% if row.temp_anomaly|default(0)|float > 1.0 %}#D64545{% elif row.temp_anomaly|default(0)|float > 0.5 %}#F2A007{% else %}var(--forest){% endif %};">
+                                {{ row.temp_anomaly }}
+                            </span>
+                        </td>
+                        <td class="py-2">{{ row.co2_ppm if row.co2_ppm is not none else '—' }}</td>
+                        <td class="py-2">{{ row.oni|default('—') }}</td>
+                        <td class="pe-4 py-2">
+                            {% if row.is_anomaly|default(false) %}
+                            <span class="badge rounded-pill" style="background:#D64545;">Anomaly</span>
+                            {% else %}
+                            <span class="badge rounded-pill" style="background:var(--forest);">Normal</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not records %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5" style="color:var(--sage);">
+                            <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+                            No records found. Try adjusting your filters.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if total_pages|default(0) > 1 %}
+<nav class="mt-4 d-flex justify-content-center">
+    <ul class="pagination">
+        <li class="page-item {% if page|default(1) == 1 %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ page|default(1) - 1 }}&year={{ request.args.get('year','') }}" style="border-radius:10px 0 0 10px;color:var(--forest);">
+                <i class="bi bi-chevron-left"></i> Prev
+            </a>
+        </li>
+        {% for p in range(1, total_pages + 1) %}
+        {% if p == page|default(1) %}
+        <li class="page-item active">
+            <span class="page-link" style="background:var(--forest);border-color:var(--forest);">{{ p }}</span>
+        </li>
+        {% elif p <= 3 or p > total_pages - 2 or (p >= page|default(1) - 1 and p <= page|default(1) + 1) %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ p }}&year={{ request.args.get('year','') }}" style="color:var(--forest);">{{ p }}</a>
+        </li>
+        {% elif p == 4 or p == total_pages - 2 %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+        {% endfor %}
+        <li class="page-item {% if page|default(1) >= total_pages %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ page|default(1) + 1 }}&year={{ request.args.get('year','') }}" style="border-radius:0 10px 10px 0;color:var(--forest);">
+                Next <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+    </ul>
+</nav>
+<p class="text-center" style="color:var(--sage);font-size:0.85rem;">
+    Page {{ page|default(1) }} of {{ total_pages }} &bull; {{ total_records|default(0) }} total records
+</p>
+{% endif %}
+{% endblock %}

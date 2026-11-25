@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Internal Server Error — EarthScape{% endblock %}
+{% block content %}
+<div class="row justify-content-center py-5">
+    <div class="col-md-6 text-center">
+        <div class="card card-es p-5 shadow-sm">
+            <div class="display-1 text-danger mb-3"><i class="bi bi-exclamation-triangle"></i></div>
+            <h2 class="fw-bold mb-3" style="font-family:'Fraunces', serif;">500 — System Error</h2>
+            <p class="text-muted fs-5 mb-4">An unexpected server error occurred. Our technical staff has been notified.</p>
+            <div>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-forest px-4 py-2">Return to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

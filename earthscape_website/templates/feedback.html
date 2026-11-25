@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Feedback — EarthScape{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:0.2rem;">
+        <i class="bi bi-chat-square-text-fill me-2"></i>Feedback
+    </h2>
+    <p style="color:var(--sage);margin:0;">Submit feedback, report bugs, or request features</p>
+</div>
+
+<div class="row g-4">
+    <!-- Submit Feedback Form -->
+    <div class="col-lg-5">
+        <div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);border-left:4px solid var(--forest);">
+            <div class="card-body p-4">
+                <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:1.5rem;">
+                    <i class="bi bi-pencil-square me-1"></i> Submit Feedback
+                </h5>
+                <form method="POST" action="{{ url_for('feedback') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="category" class="form-label fw-bold" style="color:var(--ink);font-size:0.9rem;">
+                            <i class="bi bi-tag me-1"></i> Category
+                        </label>
+                        <select class="form-select" id="category" name="category" style="border-radius:12px;padding:0.65rem 1rem;">
+                            <option value="support">Support request</option>
+                            <option value="issue">Report an issue</option>
+                            <option value="feedback">Feedback</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="subject" class="form-label fw-bold" style="color:var(--ink);font-size:0.9rem;">
+                            <i class="bi bi-chat-left-text me-1"></i> Subject
+                        </label>
+                        <input type="text" class="form-control" id="subject" name="subject" required placeholder="Brief summary of your feedback" style="border-radius:12px;padding:0.65rem 1rem;">
+                    </div>
+                    <div class="mb-4">
+                        <label for="message" class="form-label fw-bold" style="color:var(--ink);font-size:0.9rem;">
+                            <i class="bi bi-body-text me-1"></i> Message
+                        </label>
+                        <textarea class="form-control" id="message" name="message" rows="5" required placeholder="Describe your feedback in detail..." style="border-radius:12px;padding:0.65rem 1rem;"></textarea>
+                    </div>
+                    <button type="submit" class="btn w-100 rounded-pill" style="background:var(--forest);color:white;padding:0.7rem;font-weight:700;">
+                        <i class="bi bi-send me-1"></i> Submit Feedback
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Feedback List -->
+    <div class="col-lg-7">
+        <div class="card border-0" style="border-radius:16px;box-shadow:0 2px 12px rgba(20,49,33,0.06);">
+            <div class="card-body">
+                <h5 style="font-family:'Fraunces',serif;color:var(--deep-forest);margin-bottom:1rem;">
+                    <i class="bi bi-clock-history me-1"></i> My Feedback History
+                </h5>
+                {% for fb in feedbacks|default([]) %}
+                <div class="p-3 mb-3" style="background:var(--cream);border-radius:12px;border-left:4px solid {% if fb.status == 'closed' %}var(--leaf){% elif fb.status == 'replied' %}var(--pine){% else %}var(--sage){% endif %};">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <strong style="color:var(--ink);">{{ fb.subject }}</strong>
+                            <span class="badge ms-2" style="background:{% if fb.category == 'bug' %}#D64545{% elif fb.category == 'feature' %}var(--pine){% else %}var(--sage){% endif %};font-size:0.7rem;">
+                                {{ fb.category|upper }}
+                            </span>
+                        </div>
+                        <span class="badge rounded-pill" style="background:{% if fb.status == 'closed' %}var(--leaf){% elif fb.status == 'replied' %}var(--forest){% else %}rgba(242,160,7,0.15);color:#F2A007{% endif %};">
+                            {{ fb.status|default('open')|upper }}
+                        </span>
+                    </div>
+                    <p style="color:var(--sage);font-size:0.88rem;margin-bottom:0.5rem;">{{ fb.message }}</p>
+                    <small style="color:var(--sage);opacity:0.7;">
+                        <i class="bi bi-calendar me-1"></i>{{ fb.created_at|default('—') }}
+                    </small>
+                    {% if fb.admin_reply %}
+                    <div class="mt-2 p-2" style="background:rgba(30,91,63,0.06);border-radius:8px;">
+                        <small style="color:var(--forest);font-weight:600;">
+                            <i class="bi bi-reply me-1"></i>Admin Reply:
+                        </small>
+                        <br>
+                            <small style="color:var(--ink);">{{ fb.admin_reply }}</small>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% if not feedbacks %}
+                <div class="text-center py-5" style="color:var(--sage);">
+                    <i class="bi bi-chat-square" style="font-size:2.5rem;display:block;margin-bottom:0.75rem;opacity:0.4;"></i>
+                    <h6 style="color:var(--sage);">No feedback submitted yet</h6>
+                    <p style="font-size:0.88rem;">Use the form to share your thoughts, report bugs, or request new features.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
