@@ -1,42 +1,59 @@
-{% extends 'base.html' %}{% block title %}EarthScape — Climate data into decisions{% endblock %}
+{% extends 'base.html' %}
+{% block title %}EarthScape — Climate data into decisions{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="landing">
-  <header class="landing-nav">
-    <a class="brand-lockup" href="{{ url_for('home') }}"><span class="brand-mark"><i
-          class="bi bi-globe-americas"></i></span><span>EarthScape<small>CLIMATE AGENCY</small></span></a>
-    <nav class="landing-links"><a href="#mission">Our mission</a><a href="#insights">Analysis</a><a href="#data">Our
-        data</a><a class="btn btn-glow" href="{{ url_for('login') }}">Sign in</a></nav>
+<div class="home">
+
+  <!-- ============ NAVBAR ============ -->
+  <header class="home-nav">
+    <a class="brand-lockup" href="{{ url_for('home') }}">
+      <span class="brand-mark"><i class="bi bi-globe-americas"></i></span>
+      <span>EarthScape<small>CLIMATE AGENCY</small></span>
+    </a>
+    <nav class="home-nav-links" aria-label="Primary">
+      <a href="#features">Features</a>
+      <a href="#mission">Mission</a>
+      <a href="#insights">Analysis</a>
+      <a href="#weather">Weather</a>
+      <a class="btn btn-glow" href="{{ url_for('login') }}">Sign in</a>
+    </nav>
   </header>
 
-  <section class="landing-hero">
-    {% include '_earth.html' %}
-    <div class="hero-top">
-      <div class="landing-copy">
-        <span class="live-badge">Live weather from <strong data-wx="city" class="ms-1">your city</strong></span>
-        <h1>The planet is speaking. We turn its data into decisions.</h1>
-        <p>Explore global temperature, atmospheric CO₂ and greenhouse-gas trends, then see what the next twelve months
-          may hold.</p>
-        <div class="d-flex flex-wrap gap-2 mt-4">
-          <a href="{{ url_for('login') }}" class="btn btn-glow">Open the dashboard <i
-              class="bi bi-arrow-right ms-1"></i></a>
-          <a href="#insights" class="btn btn-ghost px-4 py-2">Explore the analysis</a>
-        </div>
-        <div class="landing-statbar" id="data">
-          <div class="landing-stat"><strong>1,762</strong><span>monthly records</span></div>
-          <div class="landing-stat"><strong>1880–2026</strong><span>temperature history</span></div>
-          <div class="landing-stat"><strong>12 months</strong><span>forecast horizon</span></div>
-          <div class="landing-stat"><strong>90.6%</strong><span>interval coverage</span></div>
+  <!-- ============ HERO: full-screen video background, text on top ============ -->
+  <section class="home-hero">
+    <div class="hero-bg earth-stage" data-earth aria-hidden="true">
+      <canvas class="earth-fallback"></canvas>
+      <video autoplay muted loop playsinline preload="auto">
+        <source src="{{ url_for('static', filename='video/earth.webm') }}" type="video/webm">
+        <source src="{{ url_for('static', filename='video/earth.mp4') }}" type="video/mp4">
+      </video>
+    </div>
+    <div class="hero-overlay" aria-hidden="true"></div>
+
+    <div class="home-hero-inner">
+      <div class="hero-copy">
+        <span class="live-badge">Live weather from <strong data-wx="city">your city</strong></span>
+        <h1>The planet is speaking. We turn its data into <em>decisions.</em></h1>
+        <p class="hero-lead">Explore temperature, CO₂ and greenhouse-gas trends, and see what the next twelve months may hold.</p>
+        <div class="hero-actions">
+          <a href="{{ url_for('login') }}" class="btn btn-glow">Open the dashboard <i class="bi bi-arrow-right ms-1"></i></a>
+          <a href="#insights" class="btn btn-ghost">Explore the analysis</a>
         </div>
       </div>
-      <div class="hero-gap"></div>
+
       <aside class="now-card" aria-live="polite">
         <div class="now-head">
           <div class="now-city"><span data-wx="city">—</span><small data-wx="country"></small></div>
           <span class="status-pill ok" data-wx="source">Loading</span>
         </div>
         <div class="now-main">
-          <div class="now-temp"><span data-wx="temp">--</span><sup>°C</sup></div><i class="bi bi-cloud-sun"
-            data-wx="icon"></i>
+          <div class="now-temp"><span data-wx="temp">--</span><sup>°C</sup></div>
+          <i class="bi bi-cloud-sun" data-wx="icon"></i>
         </div>
         <div class="now-label" data-wx="label">Checking the sky…</div>
         <div class="now-metrics">
@@ -46,96 +63,169 @@
         </div>
       </aside>
     </div>
-    <div class="hero-bottom">
-      <div class="hero-bottom-head">
-        <h2>Pick a city and the whole site follows its weather</h2>
+  </section>
+
+  <!-- ============ STATS STRIP ============ -->
+  <section class="stats-strip" id="data">
+    <div class="home-container">
+      <dl class="stats-row">
+        <div><dt>1,762</dt><dd>Monthly records</dd></div>
+        <div><dt>1880–2026</dt><dd>Temperature history</dd></div>
+        <div><dt>12 months</dt><dd>Forecast horizon</dd></div>
+        <div><dt>90.6%</dt><dd>Interval coverage</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ============ WEATHER STRIP ============ -->
+  <section class="home-section home-weather" id="weather">
+    <div class="home-container">
+      <div class="section-head split">
+        <div>
+          <span class="eyebrow">Live weather</span>
+          <h2>Pick a city and the whole site follows its weather</h2>
+        </div>
         <div class="wx-chips" data-wx-chips aria-label="Choose a city"></div>
       </div>
-      <div class="week-card">
-        <div class="week" data-week></div>
+      <div class="week-card"><div class="week" data-week></div></div>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section class="home-section" id="features">
+    <div class="home-container">
+      <div class="section-head center">
+        <span class="eyebrow">What you can explore</span>
+        <h2>One clear view of the climate signals</h2>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-tile"><i class="bi bi-thermometer-sun"></i>
+          <h3>Temperature records</h3><p>Monthly global anomalies from 1880 onward.</p></article>
+        <article class="feature-tile"><i class="bi bi-cloud-haze2"></i>
+          <h3>CO₂ &amp; GHG analysis</h3><p>Atmospheric CO₂ and annual emissions trends.</p></article>
+        <article class="feature-tile"><i class="bi bi-graph-up-arrow"></i>
+          <h3>Future predictions</h3><p>Direct model forecasts with uncertainty bounds.</p></article>
+        <article class="feature-tile"><i class="bi bi-bell"></i>
+          <h3>Smart alerts</h3><p>Threshold-based severity reviewed by admins.</p></article>
+        <article class="feature-tile"><i class="bi bi-chat-square-text"></i>
+          <h3>Feedback &amp; support</h3><p>Send a request and follow its status.</p></article>
       </div>
     </div>
   </section>
 
-  <section class="landing-section tint">
-    <div class="text-center"><span class="eyebrow">What you can explore</span>
-      <h2 class="mt-2">One clear view of the climate signals</h2>
-    </div>
-    <div class="feature-grid">
-      <div class="feature-tile"><i class="bi bi-thermometer-sun"></i>
-        <h3>Temperature records</h3>
-        <p>Monthly global anomalies from 1880 onward.</p>
-      </div>
-      <div class="feature-tile"><i class="bi bi-cloud-haze2"></i>
-        <h3>CO₂ &amp; GHG analysis</h3>
-        <p>Atmospheric CO₂ and annual emissions trends.</p>
-      </div>
-      <div class="feature-tile"><i class="bi bi-graph-up-arrow"></i>
-        <h3>Future predictions</h3>
-        <p>Direct model forecasts with uncertainty bounds.</p>
-      </div>
-      <div class="feature-tile"><i class="bi bi-bell"></i>
-        <h3>Smart alerts</h3>
-        <p>Threshold-based severity reviewed by admins.</p>
-      </div>
-      <div class="feature-tile"><i class="bi bi-chat-square-text"></i>
-        <h3>Feedback &amp; support</h3>
-        <p>Send a request and follow its status.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="landing-section" id="mission">
-    <div class="mission-grid">
-      <div>
+  <!-- ============ MISSION ============ -->
+  <section class="home-section alt" id="mission">
+    <div class="home-container mission-grid">
+      <div class="mission-copy">
         <span class="eyebrow">Our mission</span>
-        <h2 class="mt-2">Climate evidence, made easier to understand.</h2>
-        <p class="text-muted">EarthScape presents the results of an existing climate-data processing and modelling
-          workflow in a usable web portal. The website displays cleaned tabular data and notebook results; it does not
-          process raw satellite imagery.</p>
-        <a href="{{ url_for('login') }}" class="btn btn-forest">Explore the platform
-          <i class="bi bi-arrow-right ms-1"></i></a>
+        <h2>Climate evidence, made easier to understand.</h2>
+        <p>EarthScape presents the results of an existing climate-data processing and modelling workflow in a usable
+          web portal. The website displays cleaned tabular data and notebook results; it does not process raw
+          satellite imagery.</p>
+        <a href="{{ url_for('login') }}" class="btn btn-glow">Explore the platform <i class="bi bi-arrow-right ms-1"></i></a>
       </div>
-      <div class="mission-visual">
+      <figure class="mission-visual">
         <img src="{{ url_for('static', filename='img/mission1.png') }}" alt="Climate and Earth" loading="lazy">
-        <div class="mission-cap">Climate evidence, from NASA, NOAA and OWID data.</div>
+        <figcaption>Climate evidence, from NASA, NOAA and OWID data.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ INSIGHTS ============ -->
+  <section class="home-section" id="insights">
+    <div class="home-container">
+      <div class="section-head center">
+        <span class="eyebrow">Analysis</span>
+        <h2>What the data shows</h2>
+      </div>
+      <div class="insight-grid">
+        <article class="insight-tile cond-hot">
+          <img src="{{ url_for('static', filename='img/temperature.png') }}" alt="Temperature trends" loading="lazy">
+          <div class="cond-fx"></div>
+          <h3>Temperature trends</h3><p>Historical anomalies and warming patterns.</p>
+        </article>
+        <article class="insight-tile cond-fog">
+          <img src="{{ url_for('static', filename='img/co2.png') }}" alt="CO2 and emissions" loading="lazy">
+          <div class="cond-fx"></div>
+          <h3>CO₂ &amp; emissions</h3><p>Monthly CO₂ and annual GHG indicators.</p>
+        </article>
+        <article class="insight-tile cond-snow">
+          <img src="{{ url_for('static', filename='img/arctic.png') }}" alt="Arctic and ENSO" loading="lazy">
+          <div class="cond-fx"></div>
+          <h3>Arctic &amp; ENSO insights</h3><p>Lagged ONI features and regional warming results.</p>
+        </article>
+        <article class="insight-tile cond-storm">
+          <img src="{{ url_for('static', filename='img/anomaly.png') }}" alt="Anomaly watch" loading="lazy">
+          <div class="cond-fx"></div>
+          <h3>Anomaly watch</h3><p>Residual-method flags with documented metrics.</p>
+        </article>
       </div>
     </div>
   </section>
 
-  <div class="insight-grid">
-    <article class="insight-tile cond-hot">
-      <img src="{{ url_for('static', filename='img/temperature.png') }}" alt="Temperature trends" loading="lazy">
-      <div class="cond-fx"></div>
-      <h3>Temperature trends</h3>
-      <p>Historical anomalies and warming patterns.</p>
-    </article>
-    <article class="insight-tile cond-fog">
-      <img src="{{ url_for('static', filename='img/co2.png') }}" alt="CO2 and emissions" loading="lazy">
-      <div class="cond-fx"></div>
-      <h3>CO₂ &amp; emissions</h3>
-      <p>Monthly CO₂ and annual GHG indicators.</p>
-    </article>
-    <article class="insight-tile cond-snow">
-      <img src="{{ url_for('static', filename='img/arctic.png') }}" alt="Arctic and ENSO" loading="lazy">
-      <div class="cond-fx"></div>
-      <h3>Arctic &amp; ENSO insights</h3>
-      <p>Lagged ONI features and regional warming results.</p>
-    </article>
-    <article class="insight-tile cond-storm">
-      <img src="{{ url_for('static', filename='img/anomaly.png') }}" alt="Anomaly watch" loading="lazy">
-      <div class="cond-fx"></div>
-      <h3>Anomaly watch</h3>
-      <p>Residual-method flags with documented metrics.</p>
-    </article>
-  </div>
-  <section class="landing-cta"><span class="eyebrow">Model v3_direct</span>
-    <h2 class="mt-2">See what the next 12 months look like.</h2>
-    <p class="text-white-50">Forecasts include an uncertainty interval and clear alert levels.</p><a
-      href="{{ url_for('login') }}" class="btn btn-glow mt-2">View the forecast <i
-        class="bi bi-arrow-right ms-1"></i></a>
+  <!-- ============ CTA ============ -->
+  <section class="home-cta">
+    <div class="home-container">
+      <span class="eyebrow">Model v3_direct</span>
+      <h2>See what the next 12 months look like.</h2>
+      <p>Forecasts include an uncertainty interval and clear alert levels.</p>
+      <a href="{{ url_for('login') }}" class="btn btn-glow">View the forecast <i class="bi bi-arrow-right ms-1"></i></a>
+    </div>
   </section>
-  <footer class="landing-footer"><strong>EarthScape Climate Agency</strong><span>Big Data Climate Analytics · NASA
-      GISTEMP baseline 1951–1980 · Weather by <a href="https://open-meteo.com/" target="_blank"
-        rel="noopener noreferrer">Open-Meteo</a></span><a href="{{ url_for('login') }}">User sign in</a></footer>
-</div>{% endblock %}
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="home-footer">
+    <div class="home-container">
+
+      <div class="footer-top">
+        <div>
+          <h3>Ready to explore the climate data?</h3>
+          <p>Sign in to open the dashboard, forecasts and alerts.</p>
+        </div>
+        <a href="{{ url_for('login') }}" class="btn btn-glow">Sign in <i class="bi bi-arrow-right ms-1"></i></a>
+      </div>
+
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a class="brand-lockup" href="{{ url_for('home') }}">
+            <span class="brand-mark"><i class="bi bi-globe-americas"></i></span>
+            <span>EarthScape<small>CLIMATE AGENCY</small></span>
+          </a>
+          <p>Turning climate data into clear, usable decisions. Temperature, CO₂ and greenhouse-gas trends with 12-month forecasts.</p>
+        </div>
+
+        <nav class="footer-col" aria-label="Explore">
+          <h4>Explore</h4>
+          <a href="#features">Features</a>
+          <a href="#mission">Our mission</a>
+          <a href="#insights">Analysis</a>
+          <a href="#weather">Live weather</a>
+        </nav>
+
+        <nav class="footer-col" aria-label="Platform">
+          <h4>Platform</h4>
+          <a href="{{ url_for('login') }}">Sign in</a>
+          <a href="{{ url_for('login') }}">Dashboard</a>
+          <a href="{{ url_for('login') }}">Forecast</a>
+          <a href="{{ url_for('login') }}">Alerts</a>
+        </nav>
+
+        <div class="footer-col">
+          <h4>Data sources</h4>
+          <span>NASA GISTEMP</span>
+          <span>NOAA · Mauna Loa CO₂</span>
+          <span>Our World in Data</span>
+          <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo weather</a>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>© EarthScape Climate Agency · Big Data Climate Analytics</span>
+        <span>Temperature anomalies use the NASA GISTEMP 1951–1980 baseline.</span>
+        <a href="#top" class="to-top" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;">Back to top <i class="bi bi-arrow-up"></i></a>
+      </div>
+    </div>
+  </footer>
+
+</div>
+{% endblock %}
